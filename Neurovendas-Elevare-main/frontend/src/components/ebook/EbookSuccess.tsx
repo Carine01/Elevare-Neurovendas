@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { CheckCircle2, Download, Edit2, ArrowRight, Sparkles, Loader2 } from "lucide-react";
+import { CheckCircle2, Download, Edit2, ArrowRight, Sparkles, Loader2, Palette, Share2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { CopyDivulgacaoModal } from "./CopyDivulgacaoModal";
+import { estilosCapas, EstiloCapa } from "./EstilosCapas";
 
 interface EbookSuccessProps {
   ebookId: string;
   title: string;
   subtitle: string;
+  assunto?: string;
+  nomeProfissional?: string;
+  especialidade?: string;
   onEdit: () => void;
   onCreateAnother: () => void;
   onGoToLibrary: () => void;
@@ -17,12 +22,18 @@ export default function EbookSuccess({
   ebookId,
   title,
   subtitle,
+  assunto = "",
+  nomeProfissional = "",
+  especialidade = "",
   onEdit,
   onCreateAnother,
   onGoToLibrary,
 }: EbookSuccessProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [showCapasModal, setShowCapasModal] = useState(false);
+  const [selectedEstilo, setSelectedEstilo] = useState<EstiloCapa>(estilosCapas[0]);
   const { toast } = useToast();
 
   const handleGeneratePDF = async () => {
@@ -139,6 +150,26 @@ export default function EbookSuccess({
             </div>
           )}
 
+          {/* New Actions: Copy & Capa */}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <Button
+              onClick={() => setShowCopyModal(true)}
+              variant="outline"
+              className="flex items-center justify-center gap-2 border-pink-200 text-pink-700 hover:bg-pink-50"
+            >
+              <Share2 className="w-4 h-4" />
+              Copy de Divulgação
+            </Button>
+            <Button
+              onClick={() => setShowCapasModal(true)}
+              variant="outline"
+              className="flex items-center justify-center gap-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+            >
+              <Palette className="w-4 h-4" />
+              Trocar Capa
+            </Button>
+          </div>
+
           {/* Actions */}
           <div className="space-y-3">
             <Button
@@ -171,6 +202,86 @@ export default function EbookSuccess({
           </div>
         </div>
       </div>
+
+      {/* Modais */}
+      <CopyDivulgacaoModal
+        isOpen={showCopyModal}
+        onClose={() => setShowCopyModal(false)}
+        ebookTitulo={title}
+        assunto={assunto}
+        nomeProfissional={nomeProfissional}
+        especialidade={especialidade}
+      />
+
+      {/* Modal Capas */}
+      {showCapasModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900">Escolha o Estilo da Capa</h3>
+                <p className="text-gray-600 mt-1">{estilosCapas.length} estilos profissionais</p>
+              </div>
+              <button
+                onClick={() => setShowCapasModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                aria-label="Fechar modal de capas"
+              >
+                <Download className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {estilosCapas.map((estilo) => (
+                  <button
+                    key={estilo.id}
+                    onClick={() => {
+                      setSelectedEstilo(estilo);
+                      toast({ title: "Capa alterada!", description: `Estilo: ${estilo.nome}` });
+                    }}
+                    className={`group p-4 rounded-xl border-2 transition-all text-left ${
+                      selectedEstilo.id === estilo.id
+                        ? 'border-indigo-600 shadow-lg ring-2 ring-indigo-200'
+                        : 'border-gray-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    <div 
+                      className="w-full aspect-[3/4] rounded-lg mb-4 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden"
+                      style={{ 
+                        background: estilo.cores.gradiente || estilo.cores.bg,
+                        color: estilo.cores.primary 
+                      }}
+                    >
+                      <div className="relative z-10">
+                        <div className="text-xs font-semibold mb-2" style={{ color: estilo.cores.accent }}>
+                          {especialidade || "Estética"}
+                        </div>
+                        <div className="text-lg font-bold mb-2 line-clamp-3">{title}</div>
+                        <div className="text-sm opacity-90">{nomeProfissional || "Profissional"}</div>
+                      </div>
+                    </div>
+                    <h4 className="font-semibold text-gray-900 mb-1">{estilo.nome}</h4>
+                    <p className="text-sm text-gray-600">{estilo.descricao}</p>
+                    {selectedEstilo.id === estilo.id && (
+                      <div className="mt-3 flex items-center gap-2 text-indigo-600">
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span className="font-semibold text-sm">Selecionado</span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6">
+              <Button onClick={() => setShowCapasModal(false)} className="w-full">
+                Aplicar e Fechar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
