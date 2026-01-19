@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState } from "react";
 import NeuroVendasLayout from "@/components/dashboard/NeuroVendasLayout";
 import {
@@ -21,13 +20,91 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-const ElevareEbookGenerator = () => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState(null);
-  const [diagnostico, setDiagnostico] = useState(null);
+type StepId = 0 | 1 | 2 | 3 | 4;
+type NivelTecnico = "mais-tecnico" | "equilibrado" | "mais-acessivel";
+type Personalidade = "autoridade-proxima" | "cientifica-segura" | "transformadora-inspiradora" | "educadora-estrategica";
 
-  const [formData, setFormData] = useState({
+interface FormDataState {
+  objetivoReal: string;
+  tipoObjetivo: string;
+  publicoEspecifico: string;
+  nivelConsciencia: string;
+  especialidade: string;
+  nomeProfissional: string;
+  nomeClinica: string;
+  diferencialUnico: string;
+  principalObjecao: string;
+  nivelTecnico: NivelTecnico;
+  personalidade: Personalidade;
+  temaPrincipal: string;
+  anguloEstrategico: string;
+}
+
+type AlertaTipo = "critico" | "atencao" | "oportunidade";
+
+interface Diagnostico {
+  estruturaSugerida?: string;
+  gatilhosPrincipais?: string[];
+  abordagemConteudo?: string;
+  alertas: Array<{ tipo: AlertaTipo; mensagem: string }>;
+}
+
+interface EbookCapitulo {
+  numero: number;
+  titulo: string;
+  objetivo_estrategico: string;
+  conteudo_completo: string;
+  gatilho_usado: string;
+  transicao: string;
+}
+
+interface EbookConteudo {
+  titulo: string;
+  subtitulo: string;
+  introducao: {
+    gancho: string;
+    contexto: string;
+    promessa: string;
+    paragrafo_abertura: string;
+  };
+  capitulos: EbookCapitulo[];
+  conclusao: {
+    sintese: string;
+    transformacao: string;
+    cta_natural: string;
+    paragrafo_fechamento: string;
+  };
+  metadata_estrategica: {
+    objecoes_trabalhadas: string[];
+    momentos_autoridade: string[];
+    pontos_conversao: string[];
+  };
+}
+
+interface AnthropicTextBlock {
+  type: "text" | string;
+  text?: string;
+}
+
+interface AnthropicResponse {
+  content?: AnthropicTextBlock[];
+}
+
+const ANTHROPIC_API_URL = import.meta.env.VITE_ANTHROPIC_API_URL || "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_MODEL = import.meta.env.VITE_ANTHROPIC_MODEL || "claude-3-5-sonnet-20240620";
+const ANTHROPIC_API_VERSION = import.meta.env.VITE_ANTHROPIC_API_VERSION || "2023-06-01";
+const ANTHROPIC_API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY || "";
+
+const ElevareEbookGenerator = () => {
+  const [currentStep, setCurrentStep] = useState<StepId>(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState<EbookConteudo | null>(null);
+  const [diagnostico, setDiagnostico] = useState<Diagnostico | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+  const [formData, setFormData] = useState<FormDataState>({
     objetivoReal: "",
     tipoObjetivo: "",
     publicoEspecifico: "",
@@ -164,7 +241,7 @@ const ElevareEbookGenerator = () => {
     },
   ];
 
-  const updateFormData = (field, value) => {
+  const updateFormData = <K extends keyof FormDataState>(field: K, value: FormDataState[K]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -172,9 +249,9 @@ const ElevareEbookGenerator = () => {
     const objetivo = objetivosReais.find((o) => o.value === formData.tipoObjetivo);
     const consciencia = niveisConsciencia.find((n) => n.value === formData.nivelConsciencia);
 
-    const diag = {
+    const diag: Diagnostico = {
       estruturaSugerida: objetivo?.estrutura,
-      gatilhosPrincipais: objetivo?.gatilhos,
+      gatilhosPrincipais: objetivo?.gatilhos ?? [],
       abordagemConteudo: consciencia?.abordagem,
       alertas: [],
     };
@@ -225,8 +302,72 @@ const ElevareEbookGenerator = () => {
     }
   };
 
+  const nextStep = () => setCurrentStep((prev) => Math.min(4, (prev + 1) as StepId));
+  const previousStep = () => setCurrentStep((prev) => Math.max(0, (prev - 1) as StepId));
+
+  const extractJsonFromText = (text: string) => {
+    const withoutFences = text.replace(/```json|```/g, "").trim();
+    const match = withoutFences.match(/\{[\s\S]*\}/);
+    return match ? match[0] : "";
+  };
+
+  const isEbookConteudo = (payload: unknown): payload is EbookConteudo => {
+    if (!payload || typeof payload !== "object") return false;
+    const data = payload as Partial<EbookConteudo>;
+    return (
+      typeof data.titulo === "string" &&
+      typeof data.subtitulo === "string" &&
+      Array.isArray(data.capitulos) &&
+      data.capitulos.length > 0 &&
+      typeof data.introducao === "object" &&
+      typeof data.conclusao === "object" &&
+      typeof data.metadata_estrategica === "object"
+    );
+  };
+
+  const parseEbookPayload = (rawText: string): EbookConteudo => {
+    const jsonText = extractJsonFromText(rawText);
+    if (!jsonText) {
+      throw new Error("Nenhum JSON encontrado na resposta do modelo.");
+    }
+
+    const parsed = JSON.parse(jsonText);
+    if (!isEbookConteudo(parsed)) {
+      throw new Error("Resposta do modelo fora do formato esperado.");
+    }
+
+    return {
+      ...parsed,
+      capitulos: parsed.capitulos ?? [],
+      introducao: parsed.introducao ?? { gancho: "", contexto: "", promessa: "", paragrafo_abertura: "" },
+      conclusao: parsed.conclusao ?? { sintese: "", transformacao: "", cta_natural: "", paragrafo_fechamento: "" },
+      metadata_estrategica: {
+        objecoes_trabalhadas: parsed.metadata_estrategica?.objecoes_trabalhadas ?? [],
+        momentos_autoridade: parsed.metadata_estrategica?.momentos_autoridade ?? [],
+        pontos_conversao: parsed.metadata_estrategica?.pontos_conversao ?? [],
+      },
+    };
+  };
+
+  const handleRetry = () => {
+    setApiError(null);
+    setGeneratedContent(null);
+    setIsGenerating(false);
+    setCurrentStep(3);
+  };
+
   const gerarEbookInteligente = async () => {
     setIsGenerating(true);
+    setApiError(null);
+    setPdfError(null);
+    setGeneratedContent(null);
+    setCurrentStep(4);
+
+    if (!ANTHROPIC_API_KEY) {
+      setApiError("Chave da API Anthropic não configurada (VITE_ANTHROPIC_API_KEY).");
+      setIsGenerating(false);
+      return;
+    }
 
     try {
       const objetivo = objetivosReais.find((o) => o.value === formData.tipoObjetivo);
@@ -242,19 +383,19 @@ NUNCA escreva texto genérico. Cada palavra precisa servir ao objetivo estratég
 📊 INTELIGÊNCIA ESTRATÉGICA DO E-BOOK
 ═══════════════════════════════════════════════════════════════
 
-OBJETIVO REAL: ${objetivo.label}
-→ ${objetivo.desc}
+OBJETIVO REAL: ${objetivo?.label ?? "Objetivo não definido"}
+→ ${objetivo?.desc ?? ""}
 
-ESTRUTURA MENTAL: ${objetivo.estrutura}
-GATILHOS A USAR: ${objetivo.gatilhos.join(", ")}
+ESTRUTURA MENTAL: ${objetivo?.estrutura ?? "Estrutura não definida"}
+GATILHOS A USAR: ${(objetivo?.gatilhos ?? []).join(", ")}
 
 PÚBLICO: ${formData.publicoEspecifico}
-NÍVEL DE CONSCIÊNCIA: ${consciencia.label}
-→ ${consciencia.desc}
-→ ABORDAGEM: ${consciencia.abordagem}
+NÍVEL DE CONSCIÊNCIA: ${consciencia?.label ?? "Nível não definido"}
+→ ${consciencia?.desc ?? ""}
+→ ABORDAGEM: ${consciencia?.abordagem ?? ""}
 
-ESPECIALIDADE: ${especialidadeData.label}
-TAGS RELEVANTES: ${especialidadeData.tags.join(", ")}
+ESPECIALIDADE: ${especialidadeData?.label ?? "Especialidade não definida"}
+TAGS RELEVANTES: ${(especialidadeData?.tags ?? []).join(", ") || "—"}
 
 ═══════════════════════════════════════════════════════════════
 👤 CONTEXTO DA PROFISSIONAL
@@ -265,9 +406,9 @@ CLÍNICA: ${formData.nomeClinica || "Nome não informado"}
 DIFERENCIAL ÚNICO: ${formData.diferencialUnico || "A definir no conteúdo"}
 PRINCIPAL OBJEÇÃO DO CLIENTE: ${formData.principalObjecao || "Identificar no conteúdo"}
 
-PERSONALIDADE DA MARCA: ${personalidadeData.label}
-→ ${personalidadeData.desc}
-→ TOM: ${personalidadeData.tom}
+PERSONALIDADE DA MARCA: ${personalidadeData?.label ?? "Personalidade não definida"}
+→ ${personalidadeData?.desc ?? ""}
+→ TOM: ${personalidadeData?.tom ?? ""}
 
 NÍVEL TÉCNICO: ${
         formData.nivelTecnico === "mais-tecnico"
@@ -355,18 +496,20 @@ IMPORTANTE:
 - Use casos da especialidade ${especialidadeData.label}
 - Mantenha o tom ${personalidadeData.label}
 - Cada frase serve ao objetivo: ${objetivo.label}
-- O leitor está em: ${consciencia.label} - ajuste sua abordagem
+- O leitor está em: ${consciencia?.label ?? "N/A"} - ajuste sua abordagem
 
 Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicional.`;
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch(ANTHROPIC_API_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": ANTHROPIC_API_VERSION,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 8000,
+          model: ANTHROPIC_MODEL,
+          max_tokens: 6000,
           messages: [
             {
               role: "user",
@@ -376,20 +519,28 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
         }),
       });
 
-      const data = await response.json();
-      const contentText = data.content
-        .map((item) => (item.type === "text" ? item.text : ""))
-        .filter(Boolean)
-        .join("\n");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Falha na geração (${response.status}): ${errorText.slice(0, 400)}`);
+      }
 
-      const cleanJson = contentText.replace(/```json|```/g, "").trim();
-      const ebookData = JSON.parse(cleanJson);
+      const data: AnthropicResponse = await response.json();
+      const contentText = (data.content ?? [])
+        .filter((item) => item.type === "text" && item.text)
+        .map((item) => item.text ?? "")
+        .join("\n")
+        .trim();
+
+      if (!contentText) {
+        throw new Error("Resposta vazia do modelo.");
+      }
+
+      const ebookData = parseEbookPayload(contentText);
 
       setGeneratedContent(ebookData);
-      setCurrentStep(4);
     } catch (error) {
       console.error("Erro ao gerar e-book:", error);
-      alert("Erro ao gerar o e-book estratégico. Tente novamente.");
+      setApiError(error instanceof Error ? error.message : "Erro desconhecido ao gerar o e-book.");
     } finally {
       setIsGenerating(false);
     }
@@ -398,92 +549,106 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
   const downloadPDFEstrategico = async () => {
     if (!generatedContent) return;
 
-    const { jsPDF } = await import("jspdf");
-    const pdf = new jsPDF();
+    setPdfError(null);
+    setIsDownloadingPdf(true);
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 20;
-    const maxWidth = pageWidth - margin * 2;
-    let yPosition = margin;
+    try {
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF();
+      pdf.setFont("helvetica", "normal");
 
-    const addText = (text, fontSize, isBold = false, isCenter = false, color = [0, 0, 0]) => {
-      pdf.setFontSize(fontSize);
-      pdf.setFont(undefined, isBold ? "bold" : "normal");
-      pdf.setTextColor(...color);
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const maxWidth = pageWidth - margin * 2;
+      let yPosition = margin;
 
-      const lines = pdf.splitTextToSize(text, maxWidth);
-
-      lines.forEach((line) => {
-        if (yPosition > pageHeight - margin) {
+      const ensureSpace = (linesCount: number, fontSize: number) => {
+        const needed = linesCount * fontSize * 0.6 + 6;
+        if (yPosition + needed > pageHeight - margin) {
           pdf.addPage();
           yPosition = margin;
         }
+      };
 
-        const xPosition = isCenter ? pageWidth / 2 : margin;
-        const align = isCenter ? "center" : "left";
-        pdf.text(line, xPosition, yPosition, { align });
-        yPosition += fontSize * 0.5;
+      const addText = (text: string, fontSize: number, options?: { bold?: boolean; center?: boolean; color?: [number, number, number] }) => {
+        const { bold = false, center = false, color = [0, 0, 0] } = options || {};
+        pdf.setFontSize(fontSize);
+        pdf.setFont("helvetica", bold ? "bold" : "normal");
+        pdf.setTextColor(...color);
+
+        const lines = pdf.splitTextToSize(text, maxWidth);
+        ensureSpace(lines.length, fontSize);
+
+        lines.forEach((line) => {
+          const xPosition = center ? pageWidth / 2 : margin;
+          const align = center ? "center" : "left";
+          pdf.text(line, xPosition, yPosition, { align });
+          yPosition += fontSize * 0.6;
+        });
+
+        yPosition += 6;
+      };
+
+      const addSection = (title: string, content: string) => {
+        addText(title, 14, { bold: true, color: [79, 70, 229] });
+        addText(content, 11);
+      };
+
+      if (!generatedContent.capitulos?.length) {
+        throw new Error("Conteúdo incompleto para exportação.");
+      }
+
+      pdf.setFillColor(249, 250, 251);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+
+      pdf.setTextColor(79, 70, 229);
+      addText("ELEVARE", 10, { bold: true, center: true });
+
+      yPosition = pageHeight / 3;
+      pdf.setTextColor(30, 41, 59);
+      addText(generatedContent.titulo, 22, { bold: true, center: true });
+      yPosition += 6;
+      pdf.setTextColor(71, 85, 105);
+      addText(generatedContent.subtitulo, 14, { center: true });
+
+      yPosition = pageHeight - 55;
+      pdf.setTextColor(100, 116, 139);
+      addText(`Por ${formData.nomeProfissional}`, 11, { center: true });
+      if (formData.nomeClinica) {
+        addText(formData.nomeClinica, 10, { center: true });
+      }
+
+      pdf.addPage();
+      yPosition = margin;
+
+      addSection("POR QUE VOCÊ PRECISA LER ISSO", generatedContent.introducao?.paragrafo_abertura ?? "");
+
+      generatedContent.capitulos.forEach((cap) => {
+        addSection(cap.titulo, cap.conteudo_completo);
       });
 
-      yPosition += 5;
-    };
+      addSection("PRÓXIMOS PASSOS", generatedContent.conclusao?.paragrafo_fechamento ?? "");
 
-    const addSection = (title, content) => {
       if (yPosition > pageHeight - 60) {
         pdf.addPage();
         yPosition = margin;
       }
-      addText(title, 14, true, false, [79, 70, 229]);
-      addText(content, 11);
-      yPosition += 8;
-    };
 
-    pdf.setFillColor(249, 250, 251);
-    pdf.rect(0, 0, pageWidth, pageHeight, "F");
+      pdf.setFillColor(249, 250, 251);
+      pdf.rect(0, pageHeight - 50, pageWidth, 50, "F");
+      yPosition = pageHeight - 35;
+      pdf.setTextColor(79, 70, 229);
+      addText("Material estratégico criado pelo sistema Elevare", 9, { center: true });
+      addText("Designed for conversion, not decoration.", 8, { center: true, color: [100, 116, 139] });
 
-    pdf.setTextColor(79, 70, 229);
-    addText("ELEVARE", 10, true, true);
-
-    yPosition = pageHeight / 3;
-    pdf.setTextColor(30, 41, 59);
-    addText(generatedContent.titulo, 24, true, true);
-    yPosition += 10;
-    pdf.setTextColor(71, 85, 105);
-    addText(generatedContent.subtitulo, 14, false, true);
-
-    yPosition = pageHeight - 50;
-    pdf.setTextColor(100, 116, 139);
-    addText(`Por ${formData.nomeProfissional}`, 11, false, true);
-    if (formData.nomeClinica) {
-      addText(formData.nomeClinica, 10, false, true);
+      pdf.save(`${generatedContent.titulo.toLowerCase().replace(/\s+/g, "-")}-elevare.pdf`);
+    } catch (error) {
+      console.error("Erro ao exportar PDF:", error);
+      setPdfError(error instanceof Error ? error.message : "Erro ao gerar PDF.");
+    } finally {
+      setIsDownloadingPdf(false);
     }
-
-    pdf.addPage();
-    pdf.setFillColor(255, 255, 255);
-    yPosition = margin;
-
-    addSection("POR QUE VOCÊ PRECISA LER ISSO", generatedContent.introducao.paragrafo_abertura);
-
-    generatedContent.capitulos.forEach((cap) => {
-      addSection(cap.titulo, cap.conteudo_completo);
-    });
-
-    addSection("PRÓXIMOS PASSOS", generatedContent.conclusao.paragrafo_fechamento);
-
-    if (yPosition > pageHeight - 60) {
-      pdf.addPage();
-      yPosition = margin;
-    }
-
-    pdf.setFillColor(249, 250, 251);
-    pdf.rect(0, pageHeight - 50, pageWidth, 50, "F");
-    yPosition = pageHeight - 35;
-    pdf.setTextColor(79, 70, 229);
-    addText("Material estratégico criado pelo sistema Elevare", 9, false, true);
-    addText("Designed for conversion, not decoration.", 8, false, true, [100, 116, 139]);
-
-    pdf.save(`${generatedContent.titulo.toLowerCase().replace(/\s+/g, '-')}-elevare.pdf`);
   };
 
   const exportarParaWhatsApp = () => {
@@ -495,18 +660,6 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 p-4 md:p-8">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-        * { font-family: 'Inter', sans-serif; }
-        @keyframes slideInFromBottom { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); } 50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.6); } }
-        .animate-slide-in { animation: slideInFromBottom 0.6s ease-out forwards; }
-        .glow-pulse { animation: pulse-glow 3s ease-in-out infinite; }
-        .glass-dark { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .card-hover { transition: all 0.3s ease; }
-        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); }
-      `}</style>
-
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12 animate-slide-in">
           <div className="inline-block mb-6">
@@ -625,7 +778,7 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
                       value={formData.objetivoReal}
                       onChange={(e) => updateFormData("objetivoReal", e.target.value)}
                       placeholder="Ex: Quero que agendem consulta de crioterapia para emagrecimento"
-                      rows="3"
+                      rows={3}
                       className="w-full px-4 py-3 rounded-xl border-2 border-slate-600 bg-slate-800/50 text-white focus:border-indigo-500 focus:outline-none resize-none"
                     />
                   </div>
@@ -737,7 +890,7 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
                     <div className="text-white text-sm">{diagnostico.estruturaSugerida}</div>
                     <div className="font-bold text-indigo-400 mt-3 mb-2">⚡ Gatilhos a Usar:</div>
                     <div className="flex flex-wrap gap-2">
-                      {diagnostico.gatilhosPrincipais.map((gatilho, idx) => (
+                      {(diagnostico.gatilhosPrincipais ?? []).map((gatilho, idx) => (
                         <span key={idx} className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-full">
                           {gatilho}
                         </span>
@@ -860,7 +1013,7 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
                     value={formData.diferencialUnico}
                     onChange={(e) => updateFormData("diferencialUnico", e.target.value)}
                     placeholder="Ex: Único protocolo que combina crioterapia com drenagem linfática personalizada"
-                    rows="3"
+                    rows={3}
                     className="w-full px-4 py-3 rounded-xl border-2 border-slate-600 bg-slate-800/50 text-white focus:border-indigo-500 focus:outline-none resize-none"
                   />
                 </div>
@@ -896,7 +1049,7 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
                     value={formData.anguloEstrategico}
                     onChange={(e) => updateFormData("anguloEstrategico", e.target.value)}
                     placeholder="Ex: Mostrar que crioterapia não é só 'gelo na barriga', mas ciência que ativa metabolismo de forma mensurável"
-                    rows="4"
+                    rows={4}
                     className="w-full px-4 py-3 rounded-xl border-2 border-slate-600 bg-slate-800/50 text-white focus:border-indigo-500 focus:outline-none resize-none"
                   />
                   <div className="mt-2 text-xs text-slate-400">
@@ -933,7 +1086,30 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
 
           {currentStep === 4 && (
             <div className="space-y-8">
-              {!generatedContent ? (
+              {apiError ? (
+                <div className="text-center py-16">
+                  <div className="mb-6 inline-flex items-center justify-center rounded-full border-2 border-red-500/60 bg-red-500/10 p-4">
+                    <AlertCircle className="w-8 h-8 text-red-400" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-white mb-3">Algo deu errado na geração</h2>
+                  <p className="text-slate-300 max-w-2xl mx-auto mb-6">{apiError}</p>
+                  <div className="flex flex-col md:flex-row gap-3 justify-center">
+                    <button
+                      onClick={handleRetry}
+                      className="bg-slate-800/60 text-white px-6 py-3 rounded-xl font-semibold border border-slate-600 hover:border-slate-500"
+                    >
+                      Voltar e ajustar parâmetros
+                    </button>
+                    <button
+                      onClick={gerarEbookInteligente}
+                      className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-purple-700 transition-all"
+                    >
+                      <Zap className="w-5 h-5" />
+                      Tentar gerar novamente
+                    </button>
+                  </div>
+                </div>
+              ) : !generatedContent ? (
                 <div className="text-center py-16">
                   <div className="glow-pulse mb-8 inline-block">
                     <Zap className="w-20 h-20 text-indigo-400" />
@@ -985,10 +1161,13 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
                     <div className="space-y-3">
                       <button
                         onClick={downloadPDFEstrategico}
-                        className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:from-indigo-700 hover:to-purple-700 transition-all"
+                        disabled={isDownloadingPdf}
+                        className={`w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+                          isDownloadingPdf ? "opacity-70 cursor-not-allowed" : "hover:from-indigo-700 hover:to-purple-700"
+                        }`}
                       >
                         <BookOpen className="w-5 h-5" />
-                        Baixar E-book em PDF
+                        {isDownloadingPdf ? "Gerando PDF..." : "Baixar E-book em PDF"}
                       </button>
 
                       <button
@@ -998,6 +1177,8 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
                         <MessageCircle className="w-5 h-5" />
                         Compartilhar no WhatsApp
                       </button>
+
+                      {pdfError && <div className="text-sm text-red-300 text-center">{pdfError}</div>}
                     </div>
                   </div>
 
@@ -1088,7 +1269,7 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
           <div className="flex items-center justify-between mt-12 pt-8 border-t border-slate-700">
             {currentStep > 0 && currentStep < 4 && (
               <button
-                onClick={() => setCurrentStep((prev) => prev - 1)}
+                onClick={previousStep}
                 className="flex items-center gap-2 px-6 py-3 text-slate-300 hover:text-white transition-colors"
               >
                 <ChevronLeft className="w-5 h-5" />
@@ -1100,7 +1281,7 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
 
             {currentStep < 3 && (
               <button
-                onClick={() => setCurrentStep((prev) => prev + 1)}
+                onClick={nextStep}
                 disabled={!canProceed()}
                 className={`ml-auto flex items-center gap-2 px-8 py-3 rounded-xl font-bold transition-all ${
                   canProceed()
