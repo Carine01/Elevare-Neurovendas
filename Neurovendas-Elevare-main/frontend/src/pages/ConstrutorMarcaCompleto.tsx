@@ -5,12 +5,10 @@ import { useToast } from "@/hooks/use-toast";
 import { BackButton, HomeButton } from "@/components/ui/page-header";
 import {
   CheckCircle,
-  Sparkles,
   Crown,
   Loader2,
   X,
   Save,
-  Upload,
   Camera,
   RotateCcw,
 } from "lucide-react";
@@ -338,7 +336,8 @@ export default function ConstrutorMarcaCompleto() {
 
   // Tag management functions
   const addTag = (field: keyof BrandIdentity, value: string) => {
-    if (value.trim() && !identity[field].includes(value.trim())) {
+    const fieldValue = identity[field];
+    if (value.trim() && Array.isArray(fieldValue) && !fieldValue.includes(value.trim())) {
       setIdentity(prev => ({
         ...prev,
         [field]: [...(prev[field] as string[]), value.trim()],
@@ -576,6 +575,7 @@ export default function ConstrutorMarcaCompleto() {
                 className="hidden"
                 accept="image/*"
                 onChange={handleLogoUpload}
+                aria-label="Upload logo da marca"
               />
 
               {/* SEÇÃO 1: INFORMAÇÕES BÁSICAS */}
@@ -1151,6 +1151,7 @@ function TagInput({
             type="button"
             onClick={() => onRemove(tag)}
             className="hover:opacity-70 transition-opacity"
+            aria-label={`Remover ${tag}`}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -1178,6 +1179,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="w-full h-full cursor-pointer"
+          aria-label={`Selecionar cor ${label.toLowerCase()}`}
         />
         <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/70 text-white px-2 py-0.5 rounded text-xs font-mono pointer-events-none">
           {value.toUpperCase()}
