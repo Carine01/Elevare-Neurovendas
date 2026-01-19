@@ -1,0 +1,34 @@
+# Changelog
+
+All notable changes to NeuroVendas by Elevare will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [v2.1.0] - 2025-01-XX
+
+### 🎉 Novidades
+
+**Sistema de E-books Aprimorado**
+- **Biblioteca de 18 Assuntos Categorizados**: Temas estratégicos organizados em 3 grupos (Educar Público, Ajudar a Decidir, Posicionar Expertise) com níveis de consciência e estruturas sugeridas
+- **Copy de Divulgação Automática**: Geração de texto promocional pronto para 4 canais (Instagram Post, Stories, Email, WhatsApp) com botões de cópia rápida
+- **8 Estilos de Capa Profissionais**: Paletas de cores pré-definidas (Minimalista, Bold, Elegante, Moderno, Profissional, Natural, Sunset, Oceano) para personalização visual
+- **Modal de Aperfeiçoamento de Capítulos**: 6 opções de IA para melhorar conteúdo (expandir texto, tornar mais atrativo, adicionar exemplos, storytelling, dados científicos, didática)
+
+### 📚 Documentação
+- **Guia Técnico Central**: `.github/copilot-instructions.md` com arquitetura completa, padrões de código, workflow Git (commits, branching, PR, releases), estratégias de deployment e testes
+
+### ⚠️ Breaking Changes
+Nenhuma mudança incompatível nesta versão.
+
+---
+
+## Release Metadata
+
+**Tag**: `v2.1.0`  
+**Branch**: `master`  
+**Commits**: 6 (b060190, f3928a2, 84bc544, a49c2ae, 7eb2635)  
+**Total Lines Changed**: +1,720 insertions, -1 deletion
+
