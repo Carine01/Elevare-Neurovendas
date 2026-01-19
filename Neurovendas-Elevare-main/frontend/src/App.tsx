@@ -13,7 +13,7 @@ import EbooksPage from './pages/EbooksPage'
 import HistoricoDiagnosticos from './pages/HistoricoDiagnosticos'
 import BlogElevare from './pages/BlogElevare'
 import Biblioteca from './pages/Biblioteca'
-import ConstrutorMarca from './pages/ConstrutorMarca'
+import ConstrutorMarcaCompleto from './pages/ConstrutorMarcaCompleto'
 import CalendarioElevare from './pages/CalendarioElevare'
 import Calendario365Pro from './pages/Calendario365Pro'
 import Leads from './pages/Leads'
@@ -104,7 +104,7 @@ function AppRoutes() {
       <Route path="/dashboard/historico-diagnosticos" element={<ProtectedRoute><HistoricoDiagnosticos /></ProtectedRoute>} />
       <Route path="/dashboard/blog" element={<ProtectedRoute><BlogElevare /></ProtectedRoute>} />
       <Route path="/dashboard/biblioteca" element={<ProtectedRoute><Biblioteca /></ProtectedRoute>} />
-      <Route path="/dashboard/construtor-marca" element={<ProtectedRoute><ConstrutorMarca /></ProtectedRoute>} />
+      <Route path="/dashboard/construtor-marca" element={<ProtectedRoute><ConstrutorMarcaCompleto /></ProtectedRoute>} />
       <Route path="/dashboard/calendario" element={<ProtectedRoute><CalendarioElevare /></ProtectedRoute>} />
       <Route path="/dashboard/calendario-365" element={<ProtectedRoute><Calendario365Pro /></ProtectedRoute>} />
       <Route path="/dashboard/leads" element={<ProtectedRoute><Leads /></ProtectedRoute>} />

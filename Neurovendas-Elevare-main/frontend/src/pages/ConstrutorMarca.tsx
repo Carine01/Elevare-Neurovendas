@@ -21,6 +21,7 @@ import {
   Quote,
   Eye,
   Upload,
+  Camera,
 } from "lucide-react";
 
 // ========== TIPOS ==========
@@ -30,11 +31,13 @@ interface BrandIdentity {
   main_specialty: string;
   target_audience: string;
   brand_archetype: string;
-  positioning: string;
+  positioning: string[];  // Multi-select
   differentiator: string;
   brand_promise: string;
-  tone_of_voice: string;
+  tone_of_voice: string[];  // Multi-select
   forbidden_words: string[];
+  keywords: string[];
+  content_types: string[];
   colors: {
     primary: string;
     secondary: string;
@@ -44,9 +47,23 @@ interface BrandIdentity {
   instagram_handle: string;
   bio_text: string;
   logo?: string;
-  subSpecialties?: string[];
-  treatments?: string[];
-  team_type?: string;
+  subSpecialties: string[];
+  treatments: string[];
+  team_type: string;
+  font1: string;
+  font2: string;
+  // Voice Clone fields
+  voice_samples: string;
+  communication_style: string[];
+  sentence_length: string;
+  paragraph_style: string;
+  catchphrases: string[];
+  opening_style: string;
+  closing_style: string;
+  formality: string;
+  punctuation: string[];
+  personality: string[];
+  style_notes: string;
 }
 
 // ========== OPÇÕES ==========
