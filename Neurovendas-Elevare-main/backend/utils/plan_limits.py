@@ -24,6 +24,8 @@ PLAN_LIMITS = {
         "blogs_mes": 0,
         "diagnosticos_mes": 2,
         "whatsapp_scripts_mes": 5,
+        "brand_identity_creation": 1,  # Apenas 1 identidade no plano free
+        "voice_analysis": 3,   # 3 análises de voz por mês
         "total_criacoes": 10   # Limite total de criações
     },
     "beta": {
@@ -34,6 +36,8 @@ PLAN_LIMITS = {
         "blogs_mes": -1,
         "diagnosticos_mes": -1,
         "whatsapp_scripts_mes": -1,
+        "brand_identity_creation": -1,
+        "voice_analysis": -1,
         "total_criacoes": -1
     },
     "essencial": {
@@ -43,6 +47,8 @@ PLAN_LIMITS = {
         "blogs_mes": 0,
         "diagnosticos_mes": -1,
         "whatsapp_scripts_mes": 20,
+        "brand_identity_creation": -1,  # Ilimitado edições
+        "voice_analysis": 10,   # 10 análises por mês
         "total_criacoes": 50
     },
     "profissional": {
@@ -52,6 +58,8 @@ PLAN_LIMITS = {
         "blogs_mes": 4,
         "diagnosticos_mes": -1,
         "whatsapp_scripts_mes": -1,
+        "brand_identity_creation": -1,
+        "voice_analysis": -1,   # Ilimitado
         "total_criacoes": 50   # Pro = 50 criações
     },
     "premium": {
@@ -61,6 +69,8 @@ PLAN_LIMITS = {
         "blogs_mes": -1,       # Ilimitado
         "diagnosticos_mes": -1,
         "whatsapp_scripts_mes": -1,
+        "brand_identity_creation": -1,
+        "voice_analysis": -1,
         "total_criacoes": -1   # Premium = Ilimitado
     }
 }
@@ -75,7 +85,9 @@ CONTENT_TYPE_TO_LIMIT = {
     "ebook": "ebooks_mes",
     "blog": "blogs_mes",
     "diagnostico": "diagnosticos_mes",
-    "whatsapp": "whatsapp_scripts_mes"
+    "whatsapp": "whatsapp_scripts_mes",
+    "brand_identity": "brand_identity_creation",
+    "voice_analysis": "voice_analysis"
 }
 
 # Custo em créditos por operação de IA

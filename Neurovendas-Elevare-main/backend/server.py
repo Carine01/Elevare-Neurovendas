@@ -51,6 +51,9 @@ from services.gamma_service import (
 # Stripe Integration
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
 
+# Import routers (Modular Architecture)
+from routers.brand_identity import router as brand_identity_router
+
 # App initialization
 app = FastAPI(title="NeuroVendas by Elevare", version="2.0.0")
 
@@ -812,6 +815,9 @@ async def startup_db_client():
     client = AsyncIOMotorClient(MONGO_URL)
     db = client[DB_NAME]
     print(f"✅ NeuroVendas conectado ao MongoDB: {DB_NAME}")
+    
+    # Registra routers modulares
+    app.include_router(brand_identity_router)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
@@ -6732,12 +6738,15 @@ COLOR_SCHEMES = {
 
 @app.post("/api/ebook-new/generate")
 async def generate_new_ebook(data: NewEbookGenerateRequest, current_user: dict = Depends(get_current_user)):
-    """Gera um novo e-book usando LucresIA"""
+    """Gera um novo e-book usando LucresIA com clone de voz personalizado"""
     try:
         # Verificar créditos
         user_credits = current_user.get("credits", 0)
         if user_credits < 5:
             raise HTTPException(status_code=402, detail="Créditos insuficientes. Necessário: 5 créditos.")
+        
+        # Buscar identidade de marca para personalização
+        brand_identity = await db.brand_identities.find_one({"user_id": current_user["id"]})
         
         # Inicializar LucresIA
         lucresia = LucresIA()
@@ -6745,7 +6754,29 @@ async def generate_new_ebook(data: NewEbookGenerateRequest, current_user: dict =
         # Preparar prompt para gerar conteúdo
         structure = EBOOK_STRUCTURES.get(data.structure_type, EBOOK_STRUCTURES["educativa-explicativa"])
         
-        prompt = f"""Você é LUCRÉSIA, especialista em criar e-books para profissionais de estética.
+        # Se existe identidade de marca, usa prompt personalizado
+        if brand_identity and brand_identity.get('voice_samples'):
+            from services.prompt_builder import VoiceClonePromptBuilder
+            builder = VoiceClonePromptBuilder(brand_identity)
+            system_prompt = builder.build_system_prompt(context="ebook")
+            
+            # User prompt específico para tarefa
+            task_prompt = f"""Crie um e-book completo sobre "{data.main_topic}" para {data.professional_name}, especialista em {data.specialty}.
+
+Objetivo do material: {data.objective}
+
+Tom de escrita: {data.writing_tone}
+{"Inclua fontes e referências científicas quando relevante." if data.include_sources else ""}
+
+ESTRUTURA OBRIGATÓRIA - Responda EXATAMENTE neste formato JSON:"""
+            
+            # Combina system + user prompt
+            prompt = f"""{system_prompt}
+
+{task_prompt}"""
+        else:
+            # Fallback: prompt genérico sem personalização
+            prompt = f"""Você é LUCRÉSIA, especialista em criar e-books para profissionais de estética.
 
 Crie um e-book completo sobre "{data.main_topic}" para {data.professional_name}, especialista em {data.specialty}.
 
@@ -7212,11 +7243,36 @@ async def refine_new_ebook_chapter(data: NewEbookRefineRequest, current_user: di
         if not chapter:
             raise HTTPException(status_code=404, detail="Capítulo não encontrado")
         
+        # Buscar identidade de marca para personalização
+        brand_identity = await db.brand_identities.find_one({"user_id": current_user["id"]})
+        
         # Inicializar LucresIA
         lucresia = LucresIA()
         
-        # Gerar refinamento
-        prompt = f"""Você é LUCRÉSIA, especialista em criar conteúdo para profissionais de estética.
+        # Gerar refinamento com clone de voz se disponível
+        if brand_identity and brand_identity.get('voice_samples'):
+            from services.prompt_builder import build_voice_clone_prompt
+            
+            task = f"""Aperfeiçoe o seguinte capítulo de e-book com base na solicitação:
+
+CAPÍTULO ATUAL:
+Título: {chapter.get('title')}
+Conteúdo: {chapter.get('content')}
+
+SOLICITAÇÃO: {data.refinement_prompt}
+
+Retorne APENAS o novo conteúdo do capítulo (sem o título), mantendo SEU estilo de escrita."""
+            
+            system_prompt, user_prompt = build_voice_clone_prompt(
+                brand_identity=brand_identity,
+                task=task,
+                context="aperfeiçoamento de capítulo de ebook"
+            )
+            
+            prompt = f"""{system_prompt}\n\n{user_prompt}"""
+        else:
+            # Fallback: prompt genérico
+            prompt = f"""Você é LUCRÉSIA, especialista em criar conteúdo para profissionais de estética.
 
 Aperfeiçoe o seguinte capítulo de e-book com base na solicitação do usuário:
 

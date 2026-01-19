@@ -90,6 +90,31 @@ class LucresIA:
         # Personalizar system prompt com contexto do usuário e identidade da marca
         system_message = LUCRESIA_SYSTEM_PROMPT
         
+        # SE brand_identity tem voice_samples, usar VoiceClonePromptBuilder
+        if brand_identity and brand_identity.get('voice_samples'):
+            try:
+                from services.prompt_builder import VoiceClonePromptBuilder
+                builder = VoiceClonePromptBuilder(brand_identity)
+                # Substitui system prompt padrão pelo personalizado
+                system_message = builder.build_system_prompt(context="conteúdo geral")
+            except Exception as e:
+                # Fallback: usa método antigo se builder falhar
+                print(f"⚠️ Erro ao construir prompt personalizado: {e}")
+                system_message = self._build_basic_system_prompt(system_message, user_context, brand_identity)
+        else:
+            # Método antigo: adiciona contexto básico
+            system_message = self._build_basic_system_prompt(system_message, user_context, brand_identity)
+        
+        self.chat = LlmChat(
+            api_key=self.api_key,
+            session_id=session_id,
+            system_message=system_message
+        ).with_model("openai", "gpt-4o")
+    
+    def _build_basic_system_prompt(self, base_prompt: str, user_context: dict, brand_identity: dict) -> str:
+        """Constrói system prompt básico (método legacy)"""
+        system_message = base_prompt
+        
         # Adicionar contexto do usuário
         if user_context:
             system_message += f"\n\n📊 CONTEXTO DO USUÁRIO:\n"
@@ -104,7 +129,7 @@ class LucresIA:
             if user_context.get("tom_voz"):
                 system_message += f"Tom de voz preferido: {user_context['tom_voz']}\n"
         
-        # Adicionar identidade da marca
+        # Adicionar identidade da marca (método básico)
         if brand_identity:
             system_message += f"\n\n🎨 IDENTIDADE DA MARCA:\n"
             if brand_identity.get("brand_name"):
@@ -121,11 +146,7 @@ class LucresIA:
                 system_message += f"Frases-chave: {', '.join(brand_identity['key_phrases'])}\n"
             system_message += "\nUse essa identidade para personalizar todas as respostas e conteúdos gerados.\n"
         
-        self.chat = LlmChat(
-            api_key=self.api_key,
-            session_id=session_id,
-            system_message=system_message
-        ).with_model("openai", "gpt-4o")
+        return system_message
     
     async def send_message(self, message: str) -> str:
         """Envia mensagem para LucresIA e retorna resposta"""

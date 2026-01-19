@@ -7,6 +7,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.3.0] - 2025-01-19
+
+### 🎉 Novidades
+
+**Sistema de Clone de Voz - Integração Backend Completa**
+- **API REST Brand Identity**: 5 novos endpoints para gestão de identidade de marca
+  - `POST /api/brand-identity/` - Criar/atualizar identidade completa
+  - `GET /api/brand-identity/` - Buscar identidade do usuário
+  - `POST /api/brand-identity/analyze-voice` - Análise de voz automática (10 métricas)
+  - `GET /api/brand-identity/status` - Verificar completude e status
+  - `DELETE /api/brand-identity/` - Deletar identidade
+  
+- **Voice Clone Analyzer**: Sistema NLP de análise de escrita com 10 métricas
+  - Tamanho médio de frases (palavras por frase)
+  - Frequência de emojis (por 100 caracteres)
+  - Taxa de perguntas e exclamações
+  - Média de linhas por parágrafo
+  - Detecção de CAPS e reticências
+  - Extração de frases comuns (n-grams 2-5 palavras)
+  - Análise de vocabulário (simple/moderate/complex)
+  - Detecção de formalidade (5 níveis: muito_informal → muito_formal)
+  
+- **Prompt Builder**: Construtor de system prompts personalizados
+  - 6 seções dinâmicas (identidade, voz, estilo, restrições, exemplos, contexto)
+  - Integração automática com análise de voz
+  - Suporte a múltiplos contextos (ebook, carrossel, legenda, email)
+  - System prompts de ~2000 tokens
+  
+- **Integração com 15+ Endpoints Existentes**:
+  - ✅ `/api/ebook-new/generate` - E-books com estilo do usuário
+  - ✅ `/api/ebook-new/refine-chapter` - Aperfeiçoamento mantendo voz
+  - ✅ `/api/ai/generate-carousel` - Carrosséis personalizados
+  - ✅ `/api/ai/generate-carousel-sequence` - Sequências com tom único
+  - ✅ `/api/ai/generate-content` - Conteúdo genérico (via LucresIA)
+  - ✅ Todos endpoints que usam `LucresIA` (10+ endpoints)
+  - ✅ Todos endpoints que usam `CarouselGenerator` (2 endpoints)
+
+### ⚡ Melhorias
+
+**LucresIA e CarouselGenerator Atualizados**
+- Detecção automática de `voice_samples` em `brand_identity`
+- Substituição automática de system prompt por versão personalizada
+- Fallback inteligente para prompt genérico quando identidade não existe
+- Método `_build_basic_system_prompt()` para compatibilidade
+
+**Sistema de Limites Atualizado**
+- `brand_identity_creation`: 1 (Free), Ilimitado (Essencial+)
+- `voice_analysis`: 3/mês (Free), 10/mês (Essencial), Ilimitado (Pro+)
+- Mapeamento em `CONTENT_TYPE_TO_LIMIT` para brand_identity
+
+**Validação Pydantic Robusta**
+- `voice_samples`: min 100 caracteres
+- `tone_of_voice`: max 3 itens
+- `bio_text`: max 150 caracteres
+- Validação automática de todos os 35+ campos
+
+### 📚 Documentação
+
+**4 Novos Documentos Técnicos**
+- `VOICE_CLONE_SYSTEM.md` - Documentação completa do sistema (500+ linhas)
+- `INTEGRATION_ENDPOINTS.md` - Guia de integração com endpoints (300+ linhas)
+- `INTEGRATION_SUMMARY.md` - Resumo executivo das integrações
+- `QUICKSTART_VOICE_CLONE.md` - Guia rápido para desenvolvedores, testadores e usuários
+
+**Schemas e Testes**
+- `backend/schemas/brand_identity.py` - 4 modelos Pydantic (204 linhas)
+- `tests/test_voice_integration.py` - Suite de 6 testes (200+ linhas)
+
+### 🛠️ Arquitetura
+
+**Novos Serviços**
+- `backend/services/voice_clone_analyzer.py` (268 linhas)
+- `backend/services/prompt_builder.py` (380 linhas)
+- `backend/routers/brand_identity.py` (180 linhas)
+
+**Padrão de Integração**
+```python
+# Busca identidade
+brand_identity = await db.brand_identities.find_one({"user_id": user_id})
+
+# Se existir voice_samples, usa clone
+if brand_identity and brand_identity.get('voice_samples'):
+    from services.prompt_builder import VoiceClonePromptBuilder
+    builder = VoiceClonePromptBuilder(brand_identity)
+    system_prompt = builder.build_system_prompt(context="ebook")
+else:
+    # Fallback
+    system_prompt = "Você é LucresIA..."
+```
+
+### 🔒 Segurança
+
+- Análise de voz custa 5 créditos (proteção contra abuso)
+- Criação de identidade custa 10 créditos
+- Validação de min/max em todos os campos
+- User ID obrigatório em todas as queries (isolamento de dados)
+
+### 🐛 Correções
+
+- Nenhuma quebra de compatibilidade com código existente
+- Fallback automático quando `voice_samples` ausente
+- Try/catch em integrações para não quebrar fluxo existente
+
+---
+
 ## [v2.2.0] - 2025-01-19
 
 ### 🎉 Novidades

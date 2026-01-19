@@ -71,20 +71,47 @@ class CarouselGenerator:
         
         # Personalizar com identidade da marca
         system_message = CAROUSEL_SYSTEM_PROMPT
-        if brand_identity:
-            system_message += f"\n\n📊 IDENTIDADE DA MARCA:\n"
-            if brand_identity.get("brand_name"):
-                system_message += f"Marca: {brand_identity['brand_name']}\n"
-            if brand_identity.get("segment"):
-                system_message += f"Segmento: {brand_identity['segment']}\n"
-            if brand_identity.get("main_specialty"):
-                system_message += f"Especialidade: {brand_identity['main_specialty']}\n"
-            if brand_identity.get("positioning"):
-                system_message += f"Posicionamento: {brand_identity['positioning']}\n"
-            if brand_identity.get("visual_style"):
-                system_message += f"Estilo Visual: {brand_identity['visual_style']}\n"
-            if brand_identity.get("key_phrases"):
-                system_message += f"Frases-chave: {', '.join(brand_identity['key_phrases'])}\n"
+        
+        # SE brand_identity tem voice_samples, usar VoiceClonePromptBuilder
+        if brand_identity and brand_identity.get('voice_samples'):
+            try:
+                from services.prompt_builder import VoiceClonePromptBuilder
+                builder = VoiceClonePromptBuilder(brand_identity)
+                # Substitui system prompt padrão pelo personalizado
+                system_message = builder.build_system_prompt(context="carrossel instagram")
+            except Exception as e:
+                # Fallback: usa método antigo
+                print(f"⚠️ Erro ao construir prompt personalizado para carrossel: {e}")
+                if brand_identity:
+                    system_message += f"\n\n📊 IDENTIDADE DA MARCA:\n"
+                    if brand_identity.get("brand_name"):
+                        system_message += f"Marca: {brand_identity['brand_name']}\n"
+                    if brand_identity.get("segment"):
+                        system_message += f"Segmento: {brand_identity['segment']}\n"
+                    if brand_identity.get("main_specialty"):
+                        system_message += f"Especialidade: {brand_identity['main_specialty']}\n"
+                    if brand_identity.get("positioning"):
+                        system_message += f"Posicionamento: {brand_identity['positioning']}\n"
+                    if brand_identity.get("visual_style"):
+                        system_message += f"Estilo Visual: {brand_identity['visual_style']}\n"
+                    if brand_identity.get("key_phrases"):
+                        system_message += f"Frases-chave: {', '.join(brand_identity['key_phrases'])}\n"
+        else:
+            # Método antigo: adiciona identidade básica
+            if brand_identity:
+                system_message += f"\n\n📊 IDENTIDADE DA MARCA:\n"
+                if brand_identity.get("brand_name"):
+                    system_message += f"Marca: {brand_identity['brand_name']}\n"
+                if brand_identity.get("segment"):
+                    system_message += f"Segmento: {brand_identity['segment']}\n"
+                if brand_identity.get("main_specialty"):
+                    system_message += f"Especialidade: {brand_identity['main_specialty']}\n"
+                if brand_identity.get("positioning"):
+                    system_message += f"Posicionamento: {brand_identity['positioning']}\n"
+                if brand_identity.get("visual_style"):
+                    system_message += f"Estilo Visual: {brand_identity['visual_style']}\n"
+                if brand_identity.get("key_phrases"):
+                    system_message += f"Frases-chave: {', '.join(brand_identity['key_phrases'])}\n"
         
         # Generate a session ID for this carousel generator instance
         import uuid
