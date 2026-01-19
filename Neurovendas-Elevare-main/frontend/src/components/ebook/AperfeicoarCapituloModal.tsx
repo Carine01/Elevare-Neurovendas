@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, FileText, Sparkles, Target, Heart, TrendingUp, Lightbulb, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import api from '@/lib/api';
 
 interface AperfeicoarCapituloModalProps {
   isOpen: boolean;
@@ -72,20 +73,39 @@ export const AperfeicoarCapituloModal: React.FC<AperfeicoarCapituloModalProps> =
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [error, setError] = useState<string>('');
 
   const handleAperfeicoar = async (opcaoId: string) => {
     setSelectedOption(opcaoId);
     setIsProcessing(true);
+    setError('');
 
-    // Simular processamento (em produção usar API)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      const response = await api.post('/api/ebooks/improve-chapter', {
+        capitulo_titulo: capituloTitulo,
+        conteudo_atual: conteudoAtual,
+        tipo_aperfeicoamento: opcaoId
+      });
 
-    const opcao = opcoesAperfeicoamento.find(o => o.id === opcaoId);
-    const novoConteudo = `${conteudoAtual}\n\n[APERFEIÇOADO COM: ${opcao?.titulo}]\n\n✨ Conteúdo expandido com ${opcao?.descricao.toLowerCase()}...\n\n[Aqui seria o conteúdo gerado pela IA com base na opção escolhida]`;
-
-    onAperfeicoar(novoConteudo, opcaoId);
-    setIsProcessing(false);
-    onClose();
+      if (response.data.success) {
+        const novoConteudo = response.data.conteudo_aperfeicoado;
+        onAperfeicoar(novoConteudo, opcaoId);
+        onClose();
+      } else {
+        throw new Error('Falha ao aperfeiçoar capítulo');
+      }
+    } catch (err: any) {
+      console.error('Erro ao aperfeiçoar:', err);
+      const errorMessage = err.response?.data?.detail?.message || 'Erro ao aperfeiçoar. Tente novamente.';
+      setError(errorMessage);
+      
+      if (err.response?.data?.detail?.upgrade_required) {
+        setError(errorMessage + ' Faça upgrade do seu plano.');
+      }
+    } finally {
+      setIsProcessing(false);
+      setSelectedOption(null);
+    }
   };
 
   if (!isOpen) return null;
@@ -111,6 +131,12 @@ export const AperfeicoarCapituloModal: React.FC<AperfeicoarCapituloModalProps> =
         </div>
 
         <div className="p-6">
+          {error && !isProcessing && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+          
           {isProcessing ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
@@ -118,6 +144,7 @@ export const AperfeicoarCapituloModal: React.FC<AperfeicoarCapituloModalProps> =
               <p className="text-gray-600 text-sm">
                 Aplicando: {opcoesAperfeicoamento.find(o => o.id === selectedOption)?.titulo}
               </p>
+              <p className="text-gray-500 text-xs mt-2">Isso pode levar até 45 segundos</p>
             </div>
           ) : (
             <>

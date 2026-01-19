@@ -78,6 +78,16 @@ CONTENT_TYPE_TO_LIMIT = {
     "whatsapp": "whatsapp_scripts_mes"
 }
 
+# Custo em créditos por operação de IA
+# Usado para operações que consomem créditos ao invés de limites mensais
+COST_MAP = {
+    "ai_generation": 5,            # Geração genérica de IA
+    "ebook_generation": 100,       # Geração completa de ebook
+    "carousel": 20,                # Criação de carrossel
+    "copy_divulgacao": 20,         # Copy automática 4 canais
+    "aperfeicoar_capitulo": 15     # Aperfeiçoamento de capítulo
+}
+
 class LimitExceededError(Exception):
     """Erro quando limite do plano é excedido"""
     def __init__(self, message: str, limit_type: str, current: int, max_allowed: int):

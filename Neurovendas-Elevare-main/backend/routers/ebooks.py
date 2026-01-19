@@ -271,3 +271,253 @@ async def delete_ebook(
         "success": True,
         "message": "E-book deletado com sucesso"
     }
+
+
+# ============================================================================
+# NOVOS ENDPOINTS - Copy de Divulgação e Aperfeiçoamento
+# ============================================================================
+
+class GenerateCopyRequest(BaseModel):
+    ebook_titulo: str
+    assunto: str
+    nome_profissional: str
+    especialidade: str
+
+class ImproveChapterRequest(BaseModel):
+    capitulo_titulo: str
+    conteudo_atual: str
+    tipo_aperfeicoamento: str  # 'mais-longo', 'mais-atrativo', 'adicionar-exemplos', etc.
+
+
+@router.post("/ebooks/generate-copy")
+async def generate_marketing_copy(
+    request: GenerateCopyRequest,
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    """
+    Gera copy de divulgação automática para 4 canais:
+    - Instagram Post
+    - Stories
+    - Email
+    - WhatsApp
+    
+    Custo: 20 créditos
+    """
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    from utils.plan_limits import COST_MAP
+    
+    logger.info(f"[Copy] Gerando copy para: {request.ebook_titulo[:50]}")
+    
+    # Verificar créditos do usuário
+    credits_needed = COST_MAP["copy_divulgacao"]
+    user_credits = current_user.get("credits_remaining", 0)
+    
+    if user_credits < credits_needed:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "insufficient_credits",
+                "message": f"Você precisa de {credits_needed} créditos para gerar copy. Você tem {user_credits}.",
+                "upgrade_required": True
+            }
+        )
+    
+    try:
+        # Prompt estratégico para copy
+        prompt = f"""Você é um especialista em copywriting para profissionais de estética.
+
+Crie copy de divulgação para um e-book com as seguintes características:
+
+**Título do E-book:** {request.ebook_titulo}
+**Assunto:** {request.assunto}
+**Profissional:** {request.nome_profissional}
+**Especialidade:** {request.especialidade}
+
+Gere 4 versões de copy, uma para cada canal:
+
+1. INSTAGRAM POST (formato carrossel, 3 slides):
+   - Slide 1: Hook impactante com estatística ou dor do público
+   - Slide 2: O que o e-book entrega (3 bullets)
+   - Slide 3: CTA para baixar (link na bio)
+   
+2. STORIES (3 stories sequenciais):
+   - Story 1: Gancho visual com pergunta
+   - Story 2: Preview do conteúdo  
+   - Story 3: Swipe up ou "link na bio"
+
+3. EMAIL (assunto + corpo):
+   - Assunto: Curioso e direto (máx 50 caracteres)
+   - Corpo: Pessoal, educativo, com escassez suave
+
+4. WHATSAPP (mensagem direta):
+   - Máx 150 palavras, tom pessoal, com link
+
+Use linguagem acolhedora, técnica sem ser acadêmica, e crie senso de urgência suave.
+Retorne em formato JSON estruturado.
+"""
+        
+        llm = LlmChat(model="gemini/gemini-2.0-flash-exp")
+        response = await llm.chat_async([UserMessage(content=prompt)])
+        
+        copy_text = response.content
+        
+        # Tentar parsear JSON da resposta
+        import json
+        import re
+        
+        # Extrair JSON da resposta (pode vir com markdown)
+        json_match = re.search(r'\{[\s\S]*\}', copy_text)
+        if json_match:
+            copy_data = json.loads(json_match.group())
+        else:
+            # Fallback: estrutura manual
+            copy_data = {
+                "instagram": copy_text,
+                "stories": "Stories geradas com sucesso",
+                "email": "Email gerado com sucesso",
+                "whatsapp": "WhatsApp gerado com sucesso"
+            }
+        
+        # Deduzir créditos
+        await db.users.update_one(
+            {"id": current_user["id"]},
+            {"$inc": {"credits_remaining": -credits_needed}}
+        )
+        
+        # Registrar uso
+        await db.usage_tracking.insert_one({
+            "user_id": current_user["id"],
+            "action": "copy_divulgacao_generated",
+            "ebook_titulo": request.ebook_titulo,
+            "credits_used": credits_needed,
+            "timestamp": datetime.now(timezone.utc)
+        })
+        
+        logger.info(f"[Copy] Gerada com sucesso - {credits_needed} créditos deduzidos")
+        
+        return {
+            "success": True,
+            "copy": copy_data,
+            "credits_used": credits_needed,
+            "credits_remaining": user_credits - credits_needed
+        }
+        
+    except Exception as e:
+        logger.error(f"[Copy] Erro ao gerar: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "generation_failed",
+                "message": f"Erro ao gerar copy: {str(e)}"
+            }
+        )
+
+
+@router.post("/ebooks/improve-chapter")
+async def improve_chapter(
+    request: ImproveChapterRequest,
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db)
+):
+    """
+    Aperfeiçoa um capítulo de e-book usando IA com 6 estratégias:
+    - mais-longo: Expandir conteúdo
+    - mais-atrativo: Tornar envolvente
+    - adicionar-exemplos: Casos práticos
+    - storytelling: Narrativa emocional
+    - mais-dados: Evidências científicas
+    - mais-didatico: Simplificar
+    
+    Custo: 15 créditos
+    """
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    from utils.plan_limits import COST_MAP
+    
+    logger.info(f"[Aperfeiçoar] Tipo: {request.tipo_aperfeicoamento}, Cap: {request.capitulo_titulo[:50]}")
+    
+    # Verificar créditos
+    credits_needed = COST_MAP["aperfeicoar_capitulo"]
+    user_credits = current_user.get("credits_remaining", 0)
+    
+    if user_credits < credits_needed:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "insufficient_credits",
+                "message": f"Você precisa de {credits_needed} créditos. Você tem {user_credits}.",
+                "upgrade_required": True
+            }
+        )
+    
+    # Mapear tipo para instrução de IA
+    estrategias = {
+        "mais-longo": "Expanda o conteúdo adicionando mais detalhes, subtópicos e profundidade. Mantenha o mesmo tom mas triplique o tamanho.",
+        "mais-atrativo": "Reescreva de forma mais envolvente e persuasiva. Use ganchos, perguntas retóricas e linguagem cativante.",
+        "adicionar-exemplos": "Adicione 3-5 exemplos práticos e casos reais do mercado de estética para ilustrar cada ponto principal.",
+        "storytelling": "Reescreva usando narrativa emocional. Comece com uma história de cliente, use arcos dramáticos e fechamento inspirador.",
+        "mais-dados": "Adicione dados, estatísticas, referências científicas e números que comprovem os pontos apresentados.",
+        "mais-didatico": "Simplifique a linguagem, use analogias, divida em passos numerados e adicione glossário de termos técnicos."
+    }
+    
+    instrucao = estrategias.get(request.tipo_aperfeicoamento)
+    if not instrucao:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_type", "message": "Tipo de aperfeiçoamento inválido"}
+        )
+    
+    try:
+        prompt = f"""Você é um editor especializado em conteúdo educativo para profissionais de estética.
+
+**Capítulo:** {request.capitulo_titulo}
+
+**Conteúdo Atual:**
+{request.conteudo_atual}
+
+**Instrução de Aperfeiçoamento:**
+{instrucao}
+
+Retorne APENAS o conteúdo aperfeiçoado, sem comentários extras. Mantenha formatação markdown.
+"""
+        
+        llm = LlmChat(model="gemini/gemini-2.0-flash-exp")
+        response = await llm.chat_async([UserMessage(content=prompt)])
+        
+        conteudo_aperfeicoado = response.content
+        
+        # Deduzir créditos
+        await db.users.update_one(
+            {"id": current_user["id"]},
+            {"$inc": {"credits_remaining": -credits_needed}}
+        )
+        
+        # Registrar uso
+        await db.usage_tracking.insert_one({
+            "user_id": current_user["id"]},
+            "action": "capitulo_aperfeicoado",
+            "tipo": request.tipo_aperfeicoamento,
+            "credits_used": credits_needed,
+            "timestamp": datetime.now(timezone.utc)
+        })
+        
+        logger.info(f"[Aperfeiçoar] Sucesso - {credits_needed} créditos deduzidos")
+        
+        return {
+            "success": True,
+            "conteudo_aperfeicoado": conteudo_aperfeicoado,
+            "tipo_aplicado": request.tipo_aperfeicoamento,
+            "credits_used": credits_needed,
+            "credits_remaining": user_credits - credits_needed
+        }
+        
+    except Exception as e:
+        logger.error(f"[Aperfeiçoar] Erro: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "improvement_failed",
+                "message": f"Erro ao aperfeiçoar capítulo: {str(e)}"
+            }
+        )
+

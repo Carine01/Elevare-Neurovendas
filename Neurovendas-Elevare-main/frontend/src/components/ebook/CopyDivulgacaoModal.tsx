@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Instagram, Mail, MessageCircle, Zap, Copy, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import api from '@/lib/api';
 
 interface CopyDivulgacao {
   instagram: string;
@@ -29,6 +30,7 @@ export const CopyDivulgacaoModal: React.FC<CopyDivulgacaoModalProps> = ({
   const [generatedCopy, setGeneratedCopy] = useState<CopyDivulgacao | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string>('');
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     if (isOpen && !generatedCopy) {
@@ -38,88 +40,33 @@ export const CopyDivulgacaoModal: React.FC<CopyDivulgacaoModalProps> = ({
 
   const gerarCopy = async () => {
     setIsGenerating(true);
+    setError('');
     
-    // Simular geração (em produção usar API)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    const assuntoSimplificado = assunto.replace(/\[.*?\]/g, '').trim();
-    
-    setGeneratedCopy({
-      instagram: `📸 POST INSTAGRAM
-
-🌟 Slide 1:
-Você sabia que 80% das pessoas têm dúvidas sobre ${assuntoSimplificado}?
-
-Eu criei um guia COMPLETO e GRATUITO!
-
-✨ Slide 2:
-O que você vai aprender:
-• Como funciona na prática
-• Cuidados essenciais  
-• Resultados reais
-
-👉 Slide 3:
-Baixe AGORA (link na bio)
-ou mande "QUERO" no direct!
-
-#${especialidade.replace(/\s/g, '')} #${assuntoSimplificado.replace(/\s/g, '')}`,
-
-      stories: `📱 SEQUÊNCIA DE STORIES
-
-Story 1:
-"Recebo TODA SEMANA perguntas sobre ${assuntoSimplificado}...
-Então criei algo especial! 
-[Deslize]"
-
-Story 2:
-"🎁 MEU NOVO E-BOOK!
-'${ebookTitulo}'
-→ Completo
-→ Fácil de entender
-→ 100% grátis"
-
-Story 3:
-"Link nos destaques! ⬆️
-Ou manda 'QUERO' que eu envio 💌"`,
-
-      email: `📧 EMAIL MARKETING
-
-ASSUNTO: 🎁 ${ebookTitulo}
-
-Oi!
-
-Acabei de lançar meu e-book sobre ${assuntoSimplificado}.
-
-Nele você descobre tudo de forma clara e prática!
-
-E é 100% GRATUITO 🎉
-
-👉 [BAIXAR AGORA]
-
-Qualquer dúvida, responda este email!
-
-Com carinho,
-${nomeProfissional}
-
-P.S.: Essa é minha forma de compartilhar conhecimento de qualidade e ajudar você a tomar decisões mais conscientes sobre ${especialidade.toLowerCase()}.`,
-
-      whatsapp: `💬 MENSAGEM WHATSAPP
-
-Oi! Tudo bem? 😊
-
-Criei um e-book COMPLETO sobre ${assuntoSimplificado}!
-
-É o "${ebookTitulo}" - totalmente gratuito.
-
-Te interessa? Posso te enviar agora 💙
-
-[Link do e-book]
-
-${nomeProfissional}
-${especialidade}`
-    });
-
-    setIsGenerating(false);
+    try {
+      const response = await api.post('/api/ebooks/generate-copy', {
+        ebook_titulo: ebookTitulo,
+        assunto: assunto,
+        nome_profissional: nomeProfissional,
+        especialidade: especialidade
+      });
+      
+      if (response.data.success) {
+        setGeneratedCopy(response.data.copy);
+      } else {
+        throw new Error('Falha ao gerar copy');
+      }
+    } catch (err: any) {
+      console.error('Erro ao gerar copy:', err);
+      const errorMessage = err.response?.data?.detail?.message || 'Erro ao gerar copy. Tente novamente.';
+      setError(errorMessage);
+      
+      // Se erro de créditos, mostrar upgrade
+      if (err.response?.data?.detail?.upgrade_required) {
+        setError(errorMessage + ' Faça upgrade do seu plano.');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const copyToClipboard = async (text: string, id: string) => {
@@ -156,6 +103,19 @@ ${especialidade}`
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
               <p className="text-gray-600">Gerando copy personalizada...</p>
+              <p className="text-sm text-gray-500 mt-2">Isso pode levar até 30 segundos</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <X className="w-8 h-8 text-red-600" />
+              </div>
+              <p className="text-gray-900 font-semibold mb-2">Erro ao gerar copy</p>
+              <p className="text-gray-600 text-center max-w-md mb-6">{error}</p>
+              <Button onClick={gerarCopy} className="gap-2">
+                <Zap className="w-4 h-4" />
+                Tentar Novamente
+              </Button>
             </div>
           ) : generatedCopy ? (
             <div className="space-y-6">
