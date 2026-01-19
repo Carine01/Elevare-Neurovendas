@@ -68,7 +68,7 @@ export default function ContentCreator() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl">
+            <div className="p-3 bg-gradient-primary rounded-xl">
               <FileText className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Criar Conteúdo</h1>
@@ -80,12 +80,12 @@ export default function ContentCreator() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Form */}
-          <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-8 border border-gray-200 dark:border-slate-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Gerador de Conteúdo</h2>
+          <div className="card-glass rounded-2xl p-8">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Gerador de Conteúdo</h2>
             
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-3">
+                <label className="label-primary">
                   Tipo de Conteúdo
                 </label>
                 <div className="grid grid-cols-3 gap-3">
@@ -111,7 +111,7 @@ export default function ContentCreator() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                <label className="label-primary">
                   Tema *
                 </label>
                 <input
@@ -125,7 +125,7 @@ export default function ContentCreator() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-white mb-2">
+                <label className="label-primary">
                   Tom de Voz
                 </label>
                 <select
@@ -182,7 +182,7 @@ export default function ContentCreator() {
 
                 {generatedContent.hashtags && generatedContent.hashtags.length > 0 && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400 mb-2 block">Hashtags</label>
+                    <label className="text-sm font-medium text-gray-600 mb-2 block">Hashtags</label>
                     <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded-xl border border-blue-200 dark:border-blue-500/30">
                       <p className="text-blue-600 dark:text-blue-400 text-sm">
                         {generatedContent.hashtags.map(h => `#${h}`).join(' ')}

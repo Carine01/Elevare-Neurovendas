@@ -63,29 +63,29 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/30 dark:from-background dark:via-background dark:to-accent/10 flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Background decorations - warm lilac */}
-      <div className="absolute top-20 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-      <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-background to-accent-50 flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background decorations - Indigo theme */}
+      <div className="absolute top-20 left-1/4 w-96 h-96 bg-primary-100 rounded-full blur-3xl" />
+      <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-accent-100 rounded-full blur-3xl" />
       
       <div className="w-full max-w-md relative z-10">
         {/* Logo - Elevare NeuroVendas */}
         <div className="text-center mb-10">
           <Link to="/" className="inline-flex items-center gap-4 group">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[hsl(270,60%,55%)] to-[hsl(270,70%,45%)] flex items-center justify-center shadow-xl shadow-primary/30 group-hover:shadow-2xl group-hover:shadow-primary/40 group-hover:scale-105 transition-all duration-500">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-indigo-lg group-hover:shadow-indigo-xl group-hover:scale-105 transition-all duration-500">
               <Sparkles className="w-7 h-7 text-white" />
             </div>
             <div className="text-left">
-              <h1 className="text-2xl font-bold text-foreground tracking-tight">Elevare</h1>
+              <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Elevare</h1>
               <p className="text-sm text-primary font-semibold">NeuroVendas</p>
             </div>
           </Link>
         </div>
 
-        <Card className="p-10 bg-card/90 backdrop-blur-sm border border-border/50 shadow-2xl shadow-primary/5 rounded-3xl">
+        <Card className="card-glass p-10 shadow-indigo-xl rounded-2xl">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-foreground tracking-tight">Bem-vinda de volta!</h2>
-            <p className="text-muted-foreground mt-2">Entre para acessar sua conta</p>
+            <h2 className="text-3xl font-bold text-gray-800 tracking-tight">Bem-vinda de volta!</h2>
+            <p className="text-gray-600 mt-2">Entre para acessar sua conta</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -103,32 +103,32 @@ export default function Login() {
             )}
 
             <div>
-              <Label className="text-foreground font-medium">Email</Label>
+              <Label className="label-primary">Email</Label>
               <Input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="seu@email.com"
-                className="mt-2 h-12 rounded-xl border-border focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
+                className="input-primary h-12"
                 required
               />
             </div>
 
             <div>
-              <Label className="text-foreground font-medium">Senha</Label>
+              <Label className="label-primary">Senha</Label>
               <div className="relative mt-2">
                 <Input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="pr-12 h-12 rounded-xl border-border focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
+                  className="input-primary pr-12 h-12"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors duration-300"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors duration-300"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -144,7 +144,7 @@ export default function Login() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-[hsl(270,60%,55%)] to-[hsl(270,70%,45%)] hover:from-[hsl(270,60%,50%)] hover:to-[hsl(270,70%,40%)] text-white py-6 rounded-xl font-semibold text-base shadow-lg shadow-primary/25"
+              className="btn-primary w-full py-6 text-base font-semibold"
             >
               {loading ? (
                 <>
@@ -158,7 +158,7 @@ export default function Login() {
           </form>
 
           <div className="mt-8 text-center">
-            <p className="text-muted-foreground">
+            <p className="text-gray-600">
               Não tem uma conta?{" "}
               <Link to="/register" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-300">
                 Criar conta grátis
@@ -167,7 +167,7 @@ export default function Login() {
           </div>
         </Card>
 
-        <p className="text-center text-muted-foreground text-sm mt-8">
+        <p className="text-center text-gray-500 text-sm mt-8">
           Ao entrar, você concorda com nossos Termos de Uso e Política de Privacidade
         </p>
       </div>

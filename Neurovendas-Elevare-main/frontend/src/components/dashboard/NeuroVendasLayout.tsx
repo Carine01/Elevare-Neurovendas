@@ -176,8 +176,8 @@ export default function NeuroVendasLayout({ children }: NeuroVendasLayoutProps) 
                       onClick={() => navigate(item.href)}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-300 group ${
                         isActive
-                          ? "bg-gradient-to-r from-primary/10 to-accent text-primary shadow-sm"
-                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                          ? "bg-gradient-primary text-white shadow-indigo-md"
+                          : "text-gray-600 hover:bg-primary-50 hover:text-primary-600"
                       }`}
                     >
                       <Icon className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 ${isActive ? "text-primary" : "group-hover:scale-110"}`} />
@@ -189,8 +189,8 @@ export default function NeuroVendasLayout({ children }: NeuroVendasLayoutProps) 
                       {item.badge && (
                             <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
                               item.badge === "IA" 
-                                ? "bg-gradient-to-r from-[hsl(270,60%,55%)] to-[hsl(270,70%,45%)] text-white shadow-sm"
-                                : "bg-secondary text-secondary-foreground"
+                                ? "bg-gradient-primary text-white shadow-indigo-sm"
+                                : "bg-primary-100 text-primary-800"
                             }`}>
                               {item.badge}
                             </span>

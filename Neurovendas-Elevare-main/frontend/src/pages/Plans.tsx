@@ -221,17 +221,17 @@ export default function Plans() {
 
         {/* Header Section */}
         <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-violet-100/80 rounded-full mb-6">
-            <Shield className="w-4 h-4 text-violet-600" />
-            <span className="text-sm font-medium text-violet-700">7 dias de garantia incondicional</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-100/80 rounded-full mb-6">
+            <Shield className="w-4 h-4 text-primary-600" />
+            <span className="text-sm font-medium text-primary-700">7 dias de garantia incondicional</span>
           </div>
           
-          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4 tracking-tight">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 tracking-tight">
             Escolha seu plano
           </h1>
           
           {philosophy && (
-            <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg text-gray-500 max-w-2xl mx-auto leading-relaxed">
               {philosophy}
             </p>
           )}
@@ -256,8 +256,8 @@ export default function Plans() {
                     <Badge 
                       className={`px-4 py-1 text-xs font-semibold tracking-wide ${
                         isPremium 
-                          ? "bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 border-0" 
-                          : "bg-violet-600 text-white border-0"
+                          ? "bg-gradient-accent text-gray-900 border-0" 
+                          : "bg-primary-600 text-white border-0"
                       }`}
                     >
                       {plan.badge}
@@ -266,36 +266,36 @@ export default function Plans() {
                 )}
 
                 <Card
-                  className={`relative h-full p-8 rounded-3xl border transition-all duration-300 overflow-hidden ${
+                  className={`relative h-full p-8 rounded-2xl border transition-all duration-300 overflow-hidden ${
                     isPremium
-                      ? "bg-gradient-to-br from-slate-900 via-slate-800 to-violet-900 border-violet-500/30 text-white"
+                      ? "card-glass bg-gradient-primary text-white border-primary-300"
                       : isPopular
-                      ? "bg-white border-violet-300 shadow-xl shadow-violet-100/50"
-                      : "bg-white border-slate-200 hover:border-violet-200 hover:shadow-lg"
+                      ? "card-glass shadow-indigo-xl border-primary-300"
+                      : "card-glass hover:border-primary-300 hover:shadow-indigo-lg"
                   }`}
                 >
                   {/* Decorative gradient */}
                   {isPremium && (
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                   )}
 
                   {/* Plan Header */}
                   <div className="relative mb-6">
                     <div className="flex items-center gap-3 mb-2">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        isPremium ? "bg-violet-500/20" : "bg-violet-100"
+                        isPremium ? "bg-primary-500/20" : "bg-primary-100"
                       }`}>
-                        {plan.id === "essencial" && <Zap className={`w-5 h-5 ${isPremium ? "text-violet-300" : "text-violet-600"}`} />}
-                        {plan.id === "profissional" && <Sparkles className={`w-5 h-5 ${isPremium ? "text-violet-300" : "text-violet-600"}`} />}
-                        {plan.id === "premium" && <Crown className="w-5 h-5 text-amber-400" />}
+                        {plan.id === "essencial" && <Zap className={`w-5 h-5 ${isPremium ? "text-primary-200" : "text-primary-600"}`} />}
+                        {plan.id === "profissional" && <Sparkles className={`w-5 h-5 ${isPremium ? "text-primary-200" : "text-primary-600"}`} />}
+                        {plan.id === "premium" && <Crown className="w-5 h-5 text-accent-400" />}
                       </div>
-                      <h3 className={`text-xl font-bold ${isPremium ? "text-white" : "text-slate-900"}`}>
+                      <h3 className={`text-xl font-bold ${isPremium ? "text-white" : "text-gray-900"}`}>
                         {plan.name}
                       </h3>
                     </div>
                     
                     {plan.tagline && (
-                      <p className={`text-sm ${isPremium ? "text-violet-200" : "text-violet-600"} font-medium`}>
+                      <p className={`text-sm ${isPremium ? "text-primary-200" : "text-primary-600"} font-medium`}>
                         {plan.tagline}
                       </p>
                     )}
@@ -347,10 +347,10 @@ export default function Plans() {
                       </div>
                       <div className={`p-3 rounded-xl ${isPremium ? "bg-white/5" : "bg-slate-50"}`}>
                         <div className="flex items-center gap-2">
-                          <FileText className={`w-4 h-4 ${isPremium ? "text-violet-300" : "text-violet-500"}`} />
-                          <span className={`text-xs ${isPremium ? "text-slate-300" : "text-slate-600"}`}>Blogs</span>
+                          <FileText className={`w-4 h-4 ${isPremium ? "text-primary-300" : "text-primary-500"}`} />
+                          <span className={`text-xs ${isPremium ? "text-gray-300" : "text-gray-600"}`}>Blogs</span>
                         </div>
-                        <p className={`text-lg font-bold mt-1 ${isPremium ? "text-white" : "text-slate-900"}`}>
+                        <p className={`text-lg font-bold mt-1 ${isPremium ? "text-white" : "text-gray-900"}`}>
                           {plan.limits.blogs > 0 ? `${plan.limits.blogs}/mês` : "—"}
                         </p>
                       </div>
@@ -362,11 +362,11 @@ export default function Plans() {
                     {plan.features.slice(0, 6).map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-3">
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                          isPremium ? "bg-violet-500/20" : "bg-violet-100"
+                          isPremium ? "bg-primary-500/20" : "bg-primary-100"
                         }`}>
-                          <Check className={`w-3 h-3 ${isPremium ? "text-violet-300" : "text-violet-600"}`} />
+                          <Check className={`w-3 h-3 ${isPremium ? "text-primary-200" : "text-primary-600"}`} />
                         </div>
-                        <span className={`text-sm ${isPremium ? "text-slate-300" : "text-slate-600"}`}>
+                        <span className={`text-sm ${isPremium ? "text-gray-300" : "text-gray-600"}`}>
                           {feature}
                         </span>
                       </li>
@@ -375,8 +375,8 @@ export default function Plans() {
 
                   {/* Result */}
                   {plan.result && (
-                    <div className={`p-4 rounded-xl mb-6 ${isPremium ? "bg-violet-500/10 border border-violet-500/20" : "bg-violet-50 border border-violet-100"}`}>
-                      <p className={`text-sm font-medium ${isPremium ? "text-violet-200" : "text-violet-700"}`}>
+                    <div className={`p-4 rounded-xl mb-6 ${isPremium ? "bg-primary-500/10 border border-primary-500/20" : "bg-primary-50 border border-primary-100"}`}>
+                      <p className={`text-sm font-medium ${isPremium ? "text-primary-200" : "text-primary-700"}`}>
                         👉 {plan.result}
                       </p>
                     </div>
@@ -388,10 +388,10 @@ export default function Plans() {
                     disabled={isCurrentPlan || isProcessing}
                     className={`w-full h-12 rounded-xl font-semibold transition-all duration-300 ${
                       isPremium
-                        ? "bg-white text-slate-900 hover:bg-violet-100"
+                        ? "bg-white text-gray-900 hover:bg-primary-50"
                         : isPopular
-                        ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700"
-                        : "bg-slate-900 text-white hover:bg-slate-800"
+                        ? "btn-primary"
+                        : "bg-gray-900 text-white hover:bg-gray-800"
                     }`}
                   >
                     {isProcessing ? (

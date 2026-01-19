@@ -515,7 +515,7 @@ INPUT DA USUÁRIA: ${userInput}`;
 
   return (
     <NeuroVendasLayout>
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-background">
         {/* Navigation */}
         <div className="flex items-center gap-2 px-4 pt-4">
           <BackButton />
@@ -523,14 +523,14 @@ INPUT DA USUÁRIA: ${userInput}`;
         </div>
 
         {/* Hero Section */}
-        <div className="text-center py-12 px-4 bg-gradient-to-r from-purple-50 via-white to-indigo-50 border-b border-purple-100">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#4B0082] to-[#7c3aed] shadow-lg shadow-purple-500/30 mb-4">
+        <div className="text-center py-12 px-4 bg-gradient-to-r from-primary-50 via-background to-accent-50 border-b border-primary-100">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-primary shadow-indigo-lg mb-4">
             <Brain className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-3" style={{ fontFamily: "'Playfair Display', serif" }}>
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-3">
             Central NeuroVendas Elevare™
           </h1>
-          <p className="text-slate-600 max-w-2xl mx-auto">
+          <p className="text-gray-600 max-w-2xl mx-auto">
             Prompts estratégicos que educam, conectam e vendem — sem apelação, com ciência e resultado real.
           </p>
         </div>
@@ -538,7 +538,7 @@ INPUT DA USUÁRIA: ${userInput}`;
         {/* Container */}
         <div className="max-w-6xl mx-auto px-4 py-8">
           {/* Comece a usar agora */}
-          <p className="text-center text-sm text-slate-500 mb-4">Comece a usar agora</p>
+          <p className="text-center text-sm text-gray-500 mb-4">Comece a usar agora</p>
           
           {/* Filters - TODAS AS CATEGORIAS */}
           <div className="flex flex-wrap gap-2 mb-8 justify-center">
@@ -549,11 +549,11 @@ INPUT DA USUÁRIA: ${userInput}`;
                 className={`px-4 py-2 text-sm font-medium rounded-full transition-all ${
                   activeFilter === cat.id
                     ? cat.id === 'gestao' 
-                      ? 'bg-gradient-to-r from-slate-700 to-slate-800 text-white shadow-md'
-                      : 'bg-[#4B0082] text-white shadow-md'
+                      ? 'bg-gradient-to-r from-gray-700 to-gray-800 text-white shadow-md'
+                      : 'bg-primary-600 text-white shadow-indigo-md'
                     : cat.id === 'gestao'
-                      ? 'bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:border-[#4B0082] hover:text-[#4B0082]'
+                      ? 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-600 hover:text-primary-600'
                 }`}
               >
                 {cat.name}
@@ -566,20 +566,20 @@ INPUT DA USUÁRIA: ${userInput}`;
             {filteredPrompts.map((item) => (
               <div
                 key={item.id}
-                className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col"
+                className="card-glass rounded-2xl overflow-hidden hover:shadow-indigo-lg transition-all duration-300 flex flex-col"
               >
 
                 {/* Card Header */}
-                <div className="p-5 border-b border-slate-100">
+                <div className="p-5 border-b border-primary-100">
                   <div className="flex items-start justify-between mb-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-[#4B0082] bg-purple-50 px-2 py-1 rounded">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-primary-600 bg-primary-50 px-2 py-1 rounded">
                       {item.category}
                     </span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-1 pr-12" style={{ fontFamily: "'Playfair Display', serif" }}>
+                  <h3 className="text-lg font-bold text-gray-800 mb-1 pr-12">
                     {item.title}
                   </h3>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-gray-500">
                     {item.subtitle}
                   </p>
                 </div>
@@ -587,12 +587,12 @@ INPUT DA USUÁRIA: ${userInput}`;
                 {/* Card Body */}
                 <div className="p-5 flex-grow space-y-4">
                   {/* NeuroVendas Box */}
-                  <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-3 rounded-lg border border-amber-100">
-                    <p className="text-xs font-semibold text-amber-800 mb-2 flex items-center gap-1">
+                  <div className="bg-gradient-to-r from-accent-50 to-accent-100 p-3 rounded-lg border border-accent-100">
+                    <p className="text-xs font-semibold text-accent-800 mb-2 flex items-center gap-1">
                       <Zap className="w-3 h-3" />
                       NeuroVendas Ativado
                     </p>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-amber-700">
+                    <div className="grid grid-cols-2 gap-2 text-xs text-accent-700">
                       <div><span className="font-medium">Atenção:</span> {item.neurovendas.atencao}</div>
                       <div><span className="font-medium">Identificação:</span> {item.neurovendas.identificacao}</div>
                       <div><span className="font-medium">Segurança:</span> {item.neurovendas.seguranca}</div>
@@ -618,20 +618,20 @@ INPUT DA USUÁRIA: ${userInput}`;
                   </div>
 
                   {/* Prompt Box */}
-                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <p className="text-xs font-semibold text-slate-500 mb-1">Prompt Elevare:</p>
-                    <p className="text-sm text-slate-700 line-clamp-3">{item.prompt}</p>
+                  <div className="bg-primary-50 p-3 rounded-lg border border-primary-200">
+                    <p className="text-xs font-semibold text-primary-600 mb-1">Prompt Elevare:</p>
+                    <p className="text-sm text-gray-700 line-clamp-3">{item.prompt}</p>
                   </div>
                 </div>
 
                 {/* Card Footer */}
-                <div className="p-4 bg-slate-50 border-t border-slate-100 space-y-2">
+                <div className="p-4 bg-primary-50 border-t border-primary-100 space-y-2">
                   <button
                     onClick={() => handleCopy(item.prompt, item.id)}
                     className={`w-full py-2.5 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
                       copiedId === item.id
                         ? 'bg-green-500 text-white'
-                        : 'bg-[#4B0082] text-white hover:bg-[#3a006b]'
+                        : 'bg-primary-600 text-white hover:bg-primary-700'
                     }`}
                   >
                     {copiedId === item.id ? (
@@ -650,7 +650,7 @@ INPUT DA USUÁRIA: ${userInput}`;
                   {/* Botão LucresIA */}
                   <button
                     onClick={() => handleOpenChat(item)}
-                    className="w-full py-2 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 border border-[#4B0082] text-[#4B0082] hover:bg-purple-50"
+                    className="w-full py-2 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 border border-primary-600 text-primary-600 hover:bg-primary-50"
                   >
                     <Sparkles className="w-4 h-4" />
                     Ajustar com LucresIA
@@ -664,9 +664,9 @@ INPUT DA USUÁRIA: ${userInput}`;
         {/* Chat Modal - LucresIA */}
         {chatOpen && selectedPrompt && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-indigo-xl max-w-lg w-full max-h-[80vh] flex flex-col overflow-hidden">
               {/* Header */}
-              <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-purple-50 to-indigo-50">
+              <div className="p-4 border-b border-primary-200 flex items-center justify-between bg-gradient-to-r from-primary-50 to-accent-50">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#4B0082] to-[#7c3aed] flex items-center justify-center">
                     <Sparkles className="w-5 h-5 text-white" />

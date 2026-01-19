@@ -20,6 +20,7 @@ import {
   ArrowRight,
   Quote,
   Eye,
+  Upload,
 } from "lucide-react";
 
 // ========== TIPOS ==========
@@ -42,6 +43,10 @@ interface BrandIdentity {
   visual_style: string;
   instagram_handle: string;
   bio_text: string;
+  logo?: string;
+  subSpecialties?: string[];
+  treatments?: string[];
+  team_type?: string;
 }
 
 // ========== OPÇÕES ==========
@@ -90,7 +95,7 @@ const VISUAL_STYLES = [
 
 // ========== STEPS ==========
 const STEPS = [
-  { id: 1, title: "Identidade", subtitle: "Quem você é", icon: Building2 },
+  { id: 1, title: "Definições", subtitle: "Quem você é", icon: Building2 },
   { id: 2, title: "Posicionamento", subtitle: "O que te diferencia", icon: Target },
   { id: 3, title: "Comunicação", subtitle: "Como você fala", icon: MessageSquare },
   { id: 4, title: "Visual", subtitle: "Como você aparece", icon: Palette },
@@ -120,13 +125,17 @@ export default function ConstrutorMarca() {
     tone_of_voice: "",
     forbidden_words: [],
     colors: {
-      primary: "#4B0082",
-      secondary: "#F0E6D2",
-      accent: "#C5B4F0",
+      primary: "#4F46E5",
+      secondary: "#7C3AED",
+      accent: "#D4A853",
     },
     visual_style: "lavanda_premium",
     instagram_handle: "",
     bio_text: "",
+    logo: "",
+    subSpecialties: [],
+    treatments: [],
+    team_type: "",
   });
 
   const [forbiddenWord, setForbiddenWord] = useState("");
@@ -156,6 +165,10 @@ export default function ConstrutorMarca() {
           visual_style: existing.visual_style || prev.visual_style,
           instagram_handle: existing.instagram_handle || prev.instagram_handle,
           bio_text: existing.bio_text || prev.bio_text,
+          logo: existing.logo || prev.logo,
+          subSpecialties: existing.subSpecialties || prev.subSpecialties,
+          treatments: existing.treatments || prev.treatments,
+          team_type: existing.team_type || prev.team_type,
         }));
         
         if (existing.setup_completed) {
@@ -248,33 +261,69 @@ export default function ConstrutorMarca() {
     <div className="space-y-8">
       {/* Header da Etapa */}
       <div className="text-center mb-12">
-        <span className="inline-block px-4 py-1.5 bg-[#4B0082]/10 text-[#4B0082] text-xs font-semibold rounded-full mb-4 tracking-wide">
-          ETAPA 1 DE 4
+        <span className="inline-block px-4 py-1.5 bg-brand-indigo-500/10 text-brand-indigo-600 text-xs font-semibold rounded-full mb-4 tracking-wide">
+          ETAPA 1 DE 5
         </span>
-        <h2 className="font-['Playfair_Display'] text-3xl md:text-4xl text-[#1a1a1a] mb-3">
-          Identidade da Marca
+        <h2 className="font-['Playfair_Display'] text-3xl md:text-4xl text-brand-gray-900 mb-3">
+          Definições da Marca
         </h2>
-        <p className="text-[#6b7280] text-lg max-w-xl mx-auto">
+        <p className="text-brand-gray-600 text-lg max-w-xl mx-auto">
           Os alicerces que definem quem você é no mercado
         </p>
       </div>
 
-      {/* Nome e Instagram */}
+      {/* Logo Upload */}
+      <div className="form-group">
+        <label className="label-primary">Logo da Marca</label>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-32 h-32 border-2 border-dashed border-brand-gray-300 rounded-xl flex items-center justify-center bg-brand-gray-50 hover:bg-brand-gray-100 transition-colors cursor-pointer">
+            {identity.logo ? (
+              <img id="logoImage" src={identity.logo} alt="Logo" className="max-w-full max-h-full object-contain" />
+            ) : (
+              <div id="logoPlaceholder" className="text-center">
+                <Upload className="w-8 h-8 text-brand-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-brand-gray-500">Upload Logo</p>
+              </div>
+            )}
+          </div>
+          <input
+            type="file"
+            id="logoInput"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                  setIdentity(prev => ({ ...prev, logo: event.target?.result as string }));
+                };
+                reader.readAsDataURL(file);
+              }
+            }}
+          />
+          <label htmlFor="logoInput" className="btn-primary cursor-pointer">
+            Escolher Arquivo
+          </label>
+        </div>
+      </div>
+
+      {/* Nome da Marca e Instagram */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="group">
-          <label className="block text-sm font-semibold text-[#1a1a1a] mb-2">
-            Nome da Marca / Clínica <span className="text-[#4B0082]">*</span>
+          <label className="label-primary">
+            Nome da Marca / Clínica <span className="text-brand-indigo-600">*</span>
           </label>
           <input
             type="text"
             placeholder="Ex: Clínica Dra. Maria Silva"
             value={identity.brand_name}
             onChange={(e) => setIdentity(prev => ({ ...prev, brand_name: e.target.value }))}
-            className="w-full px-4 py-4 bg-white border-2 border-[#e5e7eb] rounded-xl text-[#1a1a1a] placeholder:text-[#9ca3af] focus:border-[#4B0082] focus:ring-0 outline-none transition-all duration-300"
+            className="input-primary"
           />
         </div>
         <div className="group">
-          <label className="block text-sm font-semibold text-[#1a1a1a] mb-2">
+          <label className="label-primary">
             @ do Instagram
           </label>
           <input
@@ -282,34 +331,119 @@ export default function ConstrutorMarca() {
             placeholder="@suaclinica"
             value={identity.instagram_handle}
             onChange={(e) => setIdentity(prev => ({ ...prev, instagram_handle: e.target.value }))}
-            className="w-full px-4 py-4 bg-white border-2 border-[#e5e7eb] rounded-xl text-[#1a1a1a] placeholder:text-[#9ca3af] focus:border-[#4B0082] focus:ring-0 outline-none transition-all duration-300"
+            className="input-primary"
           />
         </div>
       </div>
 
-      {/* Segmento */}
+      {/* Especialidade Principal */}
       <div>
-        <label className="block text-sm font-semibold text-[#1a1a1a] mb-4">
-          Segmento Principal <span className="text-[#4B0082]">*</span>
-        </label>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {SEGMENTS.map((seg) => (
+        <label className="label-primary">Especialidade Principal</label>
+        <input
+          type="text"
+          placeholder="Ex: Harmonização Facial, Bioestimuladores, Skincare..."
+          value={identity.main_specialty}
+          onChange={(e) => setIdentity(prev => ({ ...prev, main_specialty: e.target.value }))}
+          className="input-primary"
+        />
+      </div>
+
+      {/* Sub-especialidades */}
+      <div>
+        <label className="label-primary">Sub-especialidades</label>
+        <p className="text-sm text-brand-gray-500 mb-3">Áreas complementares que você atende</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {[
+            "Toxina Botulínica", "Preenchimento", "Bioestimuladores", "Fios de PDO",
+            "Peeling Químico", "Laser", "Microagulhamento", "Skinbooster"
+          ].map((sub) => (
             <button
-              key={seg.id}
+              key={sub}
               type="button"
-              onClick={() => setIdentity(prev => ({ ...prev, segment: seg.id }))}
-              className={`group relative p-5 rounded-2xl border-2 transition-all duration-300 text-left ${
-                identity.segment === seg.id
-                  ? "border-[#4B0082] bg-[#4B0082]/5 shadow-lg shadow-[#4B0082]/10"
-                  : "border-[#e5e7eb] bg-white hover:border-[#C5B4F0] hover:shadow-md"
+              onClick={() => {
+                const currentSubs = identity.subSpecialties || [];
+                const isSelected = currentSubs.includes(sub);
+                setIdentity(prev => ({
+                  ...prev,
+                  subSpecialties: isSelected
+                    ? currentSubs.filter(s => s !== sub)
+                    : [...currentSubs, sub]
+                }));
+              }}
+              className={`p-3 rounded-xl border-2 text-left transition-all duration-300 ${
+                (identity.subSpecialties || []).includes(sub)
+                  ? "border-brand-indigo-600 bg-brand-indigo-50 text-brand-indigo-700"
+                  : "border-brand-gray-200 bg-white hover:border-brand-indigo-300"
               }`}
             >
-              <span className="text-3xl block mb-3">{seg.icon}</span>
-              <span className="font-semibold text-[#1a1a1a] block mb-1">{seg.label}</span>
-              <span className="text-xs text-[#6b7280]">{seg.desc}</span>
-              {identity.segment === seg.id && (
-                <div className="absolute top-3 right-3">
-                  <CheckCircle className="w-5 h-5 text-[#4B0082]" />
+              <span className="text-sm font-medium">{sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tratamentos Oferecidos */}
+      <div>
+        <label className="label-primary">Tratamentos Oferecidos</label>
+        <p className="text-sm text-brand-gray-500 mb-3">Principais procedimentos do seu portfólio</p>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {[
+            "Harmonização Facial", "Lipo de Papada", "Rinomodelação", "Bichectomia",
+            "Mentoplastia", "Lifting Facial", "Skin Care", "Spa Facial"
+          ].map((treatment) => (
+            <button
+              key={treatment}
+              type="button"
+              onClick={() => {
+                const currentTreatments = identity.treatments || [];
+                const isSelected = currentTreatments.includes(treatment);
+                setIdentity(prev => ({
+                  ...prev,
+                  treatments: isSelected
+                    ? currentTreatments.filter(t => t !== treatment)
+                    : [...currentTreatments, treatment]
+                }));
+              }}
+              className={`p-3 rounded-xl border-2 text-left transition-all duration-300 ${
+                (identity.treatments || []).includes(treatment)
+                  ? "border-brand-indigo-600 bg-brand-indigo-50 text-brand-indigo-700"
+                  : "border-brand-gray-200 bg-white hover:border-brand-indigo-300"
+              }`}
+            >
+              <span className="text-sm font-medium">{treatment}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Arquétipo da Marca */}
+      <div>
+        <label className="label-primary">
+          Arquétipo da Marca <span className="text-brand-indigo-600">*</span>
+        </label>
+        <p className="text-brand-gray-600 text-sm mb-4">
+          O arquétipo define a personalidade profunda da sua marca. Como você quer ser percebida?
+        </p>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {ARCHETYPES.map((arch) => (
+            <button
+              key={arch.id}
+              type="button"
+              onClick={() => setIdentity(prev => ({ ...prev, brand_archetype: arch.id }))}
+              className={`group relative p-6 rounded-2xl border-2 transition-all duration-300 text-left ${
+                identity.brand_archetype === arch.id
+                  ? "border-brand-indigo-600 bg-gradient-to-br from-brand-indigo-50 to-brand-indigo-100 shadow-lg"
+                  : "border-brand-gray-200 bg-white hover:border-brand-indigo-300 hover:shadow-md"
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-3xl">{arch.icon}</span>
+                <span className="font-semibold text-brand-gray-900">{arch.label}</span>
+              </div>
+              <p className="text-sm text-brand-gray-600 leading-relaxed">{arch.desc}</p>
+              {identity.brand_archetype === arch.id && (
+                <div className="absolute top-4 right-4">
+                  <CheckCircle className="w-5 h-5 text-brand-indigo-600" />
                 </div>
               )}
             </button>
@@ -317,37 +451,91 @@ export default function ConstrutorMarca() {
         </div>
       </div>
 
-      {/* Especialidade */}
+      {/* Posicionamento */}
       <div>
-        <label className="block text-sm font-semibold text-[#1a1a1a] mb-2">
-          Especialidade Principal
+        <label className="label-primary">
+          Posicionamento de Mercado <span className="text-brand-indigo-600">*</span>
         </label>
-        <input
-          type="text"
-          placeholder="Ex: Harmonização Facial, Bioestimuladores, Skincare..."
-          value={identity.main_specialty}
-          onChange={(e) => setIdentity(prev => ({ ...prev, main_specialty: e.target.value }))}
-          className="w-full px-4 py-4 bg-white border-2 border-[#e5e7eb] rounded-xl text-[#1a1a1a] placeholder:text-[#9ca3af] focus:border-[#4B0082] focus:ring-0 outline-none transition-all duration-300"
-        />
+        <div className="space-y-3">
+          {POSITIONING_OPTIONS.map((pos) => (
+            <button
+              key={pos.id}
+              type="button"
+              onClick={() => setIdentity(prev => ({ ...prev, positioning: pos.id }))}
+              className={`w-full flex items-center gap-4 p-5 rounded-2xl border-2 transition-all duration-300 text-left ${
+                identity.positioning === pos.id
+                  ? "border-brand-indigo-600 bg-brand-indigo-50 shadow-lg"
+                  : "border-brand-gray-200 bg-white hover:border-brand-indigo-300 hover:shadow-md"
+              }`}
+            >
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${
+                identity.positioning === pos.id ? "bg-brand-indigo-600 text-white" : "bg-brand-gold-100"
+              }`}>
+                {identity.positioning === pos.id ? <CheckCircle className="w-6 h-6" /> : pos.icon}
+              </div>
+              <div className="flex-1">
+                <span className="font-semibold text-brand-gray-900 block">{pos.label}</span>
+                <span className="text-sm text-brand-gray-600">{pos.desc}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tipo de Equipe */}
+      <div>
+        <label className="label-primary">
+          Tipo de Equipe <span className="text-brand-indigo-600">*</span>
+        </label>
+        <div className="grid md:grid-cols-2 gap-4">
+          {[
+            { id: "solo", label: "Profissional Solo", desc: "Você trabalha sozinho(a)", icon: "👤" },
+            { id: "small_team", label: "Equipe Pequena", desc: "2-5 profissionais", icon: "👥" },
+            { id: "medium_team", label: "Equipe Média", desc: "6-15 profissionais", icon: "🏢" },
+            { id: "large_team", label: "Equipe Grande", desc: "16+ profissionais", icon: "🏛️" }
+          ].map((team) => (
+            <button
+              key={team.id}
+              type="button"
+              onClick={() => setIdentity(prev => ({ ...prev, team_type: team.id }))}
+              className={`group relative p-5 rounded-2xl border-2 transition-all duration-300 text-left ${
+                identity.team_type === team.id
+                  ? "border-brand-indigo-600 bg-brand-indigo-50 shadow-lg"
+                  : "border-brand-gray-200 bg-white hover:border-brand-indigo-300 hover:shadow-md"
+              }`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">{team.icon}</span>
+                <span className="font-semibold text-brand-gray-900">{team.label}</span>
+              </div>
+              <p className="text-sm text-brand-gray-600">{team.desc}</p>
+              {identity.team_type === team.id && (
+                <div className="absolute top-3 right-3">
+                  <CheckCircle className="w-5 h-5 text-brand-indigo-600" />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Público-Alvo */}
       <div>
-        <label className="block text-sm font-semibold text-[#1a1a1a] mb-2">
-          Público-Alvo Específico <span className="text-[#4B0082]">*</span>
+        <label className="label-primary">
+          Público-Alvo Específico <span className="text-brand-indigo-600">*</span>
         </label>
         <textarea
           placeholder="Descreva com detalhes: Mulheres de 35-50 anos, classe A/B, que buscam rejuvenescimento natural sem parecer 'feito'..."
           value={identity.target_audience}
           onChange={(e) => setIdentity(prev => ({ ...prev, target_audience: e.target.value }))}
           rows={4}
-          className="w-full px-4 py-4 bg-white border-2 border-[#e5e7eb] rounded-xl text-[#1a1a1a] placeholder:text-[#9ca3af] focus:border-[#4B0082] focus:ring-0 outline-none transition-all duration-300 resize-none"
+          className="input-primary resize-none"
         />
-        <div className="mt-4 p-4 bg-gradient-to-r from-[#F0E6D2] to-[#FAF9F7] rounded-xl border border-[#e5e7eb]">
+        <div className="mt-4 p-4 bg-gradient-to-r from-brand-gold-50 to-brand-gold-100 rounded-xl border border-brand-gold-200">
           <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-[#4B0082] flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-[#4a4a4a]">
-              <span className="font-semibold text-[#4B0082]">Dica Elevare:</span> Quanto mais específico, melhor. 
+            <Sparkles className="w-5 h-5 text-brand-gold-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-brand-gray-700">
+              <span className="font-semibold text-brand-gold-700">Dica Elevare:</span> Quanto mais específico, melhor.
               "Mulheres" é genérico. "Mulheres executivas 40+ que querem resultados discretos" é estratégico.
             </p>
           </div>
@@ -360,8 +548,8 @@ export default function ConstrutorMarca() {
   const renderStep2 = () => (
     <div className="space-y-8">
       <div className="text-center mb-12">
-        <span className="inline-block px-4 py-1.5 bg-[#4B0082]/10 text-[#4B0082] text-xs font-semibold rounded-full mb-4 tracking-wide">
-          ETAPA 2 DE 4
+        <span className="inline-block px-4 py-1.5 bg-brand-indigo-500/10 text-brand-indigo-600 text-xs font-semibold rounded-full mb-4 tracking-wide">
+          ETAPA 2 DE 5
         </span>
         <h2 className="font-['Playfair_Display'] text-3xl md:text-4xl text-[#1a1a1a] mb-3">
           Posicionamento Estratégico
@@ -481,7 +669,7 @@ export default function ConstrutorMarca() {
     <div className="space-y-8">
       <div className="text-center mb-12">
         <span className="inline-block px-4 py-1.5 bg-[#4B0082]/10 text-[#4B0082] text-xs font-semibold rounded-full mb-4 tracking-wide">
-          ETAPA 3 DE 4
+          ETAPA 3 DE 5
         </span>
         <h2 className="font-['Playfair_Display'] text-3xl md:text-4xl text-[#1a1a1a] mb-3">
           Tom de Voz & Comunicação
@@ -593,7 +781,7 @@ export default function ConstrutorMarca() {
     <div className="space-y-8">
       <div className="text-center mb-12">
         <span className="inline-block px-4 py-1.5 bg-[#4B0082]/10 text-[#4B0082] text-xs font-semibold rounded-full mb-4 tracking-wide">
-          ETAPA 4 DE 4
+          ETAPA 4 DE 5
         </span>
         <h2 className="font-['Playfair_Display'] text-3xl md:text-4xl text-[#1a1a1a] mb-3">
           Identidade Visual

@@ -23,10 +23,10 @@ const tipoIcons = {
 }
 
 const tipoColors = {
-  post: 'from-blue-500 to-cyan-500',
-  ebook: 'from-purple-500 to-pink-500',
-  ad: 'from-orange-500 to-red-500',
-  roteiro: 'from-green-500 to-emerald-500',
+  post: 'from-primary-500 to-primary-400',
+  ebook: 'from-accent-500 to-accent-400',
+  ad: 'from-primary-600 to-primary-500',
+  roteiro: 'from-accent-600 to-accent-500',
 }
 
 export default function Content() {
@@ -156,7 +156,7 @@ Agende agora sua avaliação gratuita! Link na bio.`,
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white">Conteúdo com IA</h1>
-            <p className="text-slate-400 mt-1">Gere posts, e-books e anúncios com inteligência artificial</p>
+            <p className="text-gray-500 mt-1">Gere posts, e-books e anúncios com inteligência artificial</p>
           </div>
           <button
             onClick={() => setShowModal(true)}
@@ -180,7 +180,7 @@ Agende agora sua avaliação gratuita! Link na bio.`,
                 <item.icon className="w-5 h-5 text-white" />
               </div>
               <p className="text-2xl font-bold text-white">{item.count}</p>
-              <p className="text-sm text-slate-400">{item.label}</p>
+              <p className="text-sm text-gray-500">{item.label}</p>
             </div>
           ))}
         </div>
@@ -196,7 +196,7 @@ Agende agora sua avaliação gratuita! Link na bio.`,
               <Sparkles className="w-8 h-8 text-slate-600" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">Nenhum conteúdo gerado</h3>
-            <p className="text-slate-400 mb-6">Use a IA para criar seu primeiro conteúdo</p>
+            <p className="text-gray-500 mb-6">Use a IA para criar seu primeiro conteúdo</p>
             <button
               onClick={() => setShowModal(true)}
               className="btn-premium text-white font-medium px-6 py-2.5 rounded-xl inline-flex items-center gap-2"

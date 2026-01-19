@@ -190,10 +190,10 @@ export default function Dashboard() {
           
           {/* Header simples */}
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold text-foreground">
+            <h1 className="text-2xl font-semibold text-gray-800">
               Olá, {user?.name?.split(" ")[0] || "Profissional"}
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-gray-600 mt-1">
               {etapasCompletas} de 3 etapas concluídas
             </p>
           </div>
