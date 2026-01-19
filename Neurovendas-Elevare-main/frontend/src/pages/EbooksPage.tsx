@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import NeuroVendasLayout from "@/components/dashboard/NeuroVendasLayout";
+import { useCredits } from "@/hooks/useCredits";
 import {
   Brain,
   Target,
@@ -104,6 +105,10 @@ const ElevareEbookGenerator = () => {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
+  // Créditos
+  const { balance, fetchBalance, checkCredits, consumeCredits, refundCredits } = useCredits();
+  const EBOOK_GENERATION_COST = 10.0;
+
   const [formData, setFormData] = useState<FormDataState>({
     objetivoReal: "",
     tipoObjetivo: "",
@@ -119,6 +124,11 @@ const ElevareEbookGenerator = () => {
     temaPrincipal: "",
     anguloEstrategico: "",
   });
+
+  // Buscar saldo de créditos ao montar
+  useEffect(() => {
+    fetchBalance();
+  }, [fetchBalance]);
 
   const steps = [
     { id: 0, title: "Diagnóstico Estratégico", icon: Brain },
@@ -357,6 +367,13 @@ const ElevareEbookGenerator = () => {
   };
 
   const gerarEbookInteligente = async () => {
+    // Verificar créditos ANTES de iniciar
+    const creditCheck = await checkCredits("ebook_generation");
+    if (!creditCheck?.available) {
+      setApiError(`Créditos insuficientes. Necessário: ${creditCheck?.required_credits || EBOOK_GENERATION_COST} créditos.`);
+      return;
+    }
+
     setIsGenerating(true);
     setApiError(null);
     setPdfError(null);
@@ -538,9 +555,24 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
       const ebookData = parseEbookPayload(contentText);
 
       setGeneratedContent(ebookData);
+
+      // SUCESSO: Consumir créditos
+      try {
+        await consumeCredits("ebook_generation");
+      } catch (creditError) {
+        console.warn("Aviso: E-book gerado mas falha ao debitar créditos:", creditError);
+        // Não falhar geração por erro de créditos
+      }
     } catch (error) {
       console.error("Erro ao gerar e-book:", error);
       setApiError(error instanceof Error ? error.message : "Erro desconhecido ao gerar o e-book.");
+      
+      // FALHA: Reembolsar créditos
+      try {
+        await refundCredits("ebook_generation", "Geração falhou");
+      } catch (refundError) {
+        console.warn("Erro ao reembolsar créditos:", refundError);
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -670,9 +702,17 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
           <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
             Sistema editorial inteligente que transforma conhecimento em <span className="text-indigo-400 font-semibold">autoridade</span> e autoridade em <span className="text-purple-400 font-semibold">conversão</span>.
           </p>
-          <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/20 rounded-full border border-indigo-500/30">
-            <Brain className="w-4 h-4 text-indigo-400" />
-            <span className="text-sm text-indigo-300">Inteligência Estratégica Ativa</span>
+          <div className="mt-6 flex flex-col md:flex-row gap-3 items-center justify-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/20 rounded-full border border-indigo-500/30">
+              <Brain className="w-4 h-4 text-indigo-400" />
+              <span className="text-sm text-indigo-300">Inteligência Estratégica Ativa</span>
+            </div>
+            {balance && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 rounded-full border border-emerald-500/30">
+                <Zap className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm text-emerald-300">{balance.balance.toFixed(0)} / {balance.total_available_month.toFixed(0)} créditos</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1295,27 +1335,34 @@ Retorne APENAS o JSON completo. Nada de markdown, explicações ou texto adicion
             )}
 
             {currentStep === 3 && (
-              <button
-                onClick={gerarEbookInteligente}
-                disabled={!canProceed() || isGenerating}
-                className={`ml-auto flex items-center gap-2 px-8 py-3 rounded-xl font-bold transition-all ${
-                  canProceed() && !isGenerating
-                    ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700"
-                    : "bg-slate-700 text-slate-500 cursor-not-allowed"
-                }`}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Gerando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-5 h-5" />
-                    <span>Gerar E-book Estratégico</span>
-                  </>
+              <div className="ml-auto space-y-2">
+                {balance && balance.remaining_percent < 20 && (
+                  <div className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30 text-yellow-300 text-sm text-right">
+                    ⚠️ Você tem apenas {balance.balance.toFixed(0)} créditos. Cada e-book custa {EBOOK_GENERATION_COST} créditos.
+                  </div>
                 )}
-              </button>
+                <button
+                  onClick={gerarEbookInteligente}
+                  disabled={!canProceed() || isGenerating || (balance !== null && balance.balance < EBOOK_GENERATION_COST)}
+                  className={`flex items-center gap-2 px-8 py-3 rounded-xl font-bold transition-all ${
+                    canProceed() && !isGenerating && (!balance || balance.balance >= EBOOK_GENERATION_COST)
+                      ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700"
+                      : "bg-slate-700 text-slate-500 cursor-not-allowed"
+                  }`}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Gerando... ({EBOOK_GENERATION_COST} créditos)</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-5 h-5" />
+                      <span>Gerar E-book Estratégico ({EBOOK_GENERATION_COST} créditos)</span>
+                    </>
+                  )}
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -1,83 +1,98 @@
 /**
- * Hook de verificação de créditos
- * Impede uso de ferramentas com saldo insuficiente
+ * Hook para gerenciar créditos do usuário
+ * Verificação, consumo e reembolso de créditos
  */
 
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
 
-interface CreditCheck {
-  hasCredits: boolean;
-  currentBalance: number;
-  requiredCredits: number;
+export interface CreditBalance {
+  balance: number;
+  total_available_month: number;
+  total_used_month: number;
+  remaining_percent: number;
+  month_reset_date: string;
+}
+
+interface CreditCheckResult {
+  available: boolean;
+  required_credits: number;
+  current_balance: number;
+  error: string | null;
 }
 
 export function useCredits() {
   const { toast } = useToast();
+  const [balance, setBalance] = useState<CreditBalance | null>(null);
   const [checking, setChecking] = useState(false);
 
-  const checkCredits = useCallback(async (requiredAmount: number): Promise<CreditCheck> => {
+  /**
+   * Busca saldo de créditos atual
+   */
+  const fetchBalance = useCallback(async () => {
     setChecking(true);
     try {
-      const response = await api.get('/api/auth/me');
-      const currentBalance = response.data.user?.credits_remaining || 0;
-      
-      if (currentBalance < requiredAmount) {
+      const response = await api.get('/api/credits/balance');
+      setBalance(response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar saldo de créditos:", error);
+      return null;
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  /**
+   * Verifica se usuário tem créditos suficientes para uma ação
+   */
+  const checkCredits = useCallback(async (action: string): Promise<CreditCheckResult | null> => {
+    setChecking(true);
+    try {
+      const response = await api.post(`/api/credits/check/${action}`);
+      const result = response.data;
+
+      if (!result.available) {
         toast({
           title: "Créditos insuficientes",
-          description: `Você precisa de ${requiredAmount} créditos, mas tem apenas ${currentBalance}. Adquira mais créditos para continuar.`,
+          description: `Necessário: ${result.required_credits} créditos. Disponível: ${result.current_balance}. Seu saldo será restaurado no próximo mês.`,
           variant: "destructive",
         });
-        return {
-          hasCredits: false,
-          currentBalance,
-          requiredCredits: requiredAmount
-        };
       }
 
-      return {
-        hasCredits: true,
-        currentBalance,
-        requiredCredits: requiredAmount
-      };
+      return result;
     } catch (error) {
       toast({
         title: "Erro ao verificar créditos",
         description: "Não foi possível verificar seu saldo. Tente novamente.",
         variant: "destructive",
       });
-      return {
-        hasCredits: false,
-        currentBalance: 0,
-        requiredCredits: requiredAmount
-      };
+      return null;
     } finally {
       setChecking(false);
     }
   }, [toast]);
 
-  const consumeWithCheck = useCallback(async <T>(
-    requiredAmount: number,
-    operation: () => Promise<T>,
-    operationName: string = "operação"
-  ): Promise<T | null> => {
-    const check = await checkCredits(requiredAmount);
-    
-    if (!check.hasCredits) {
-      return null;
-    }
-
+  /**
+   * Consome créditos após sucesso de geração
+   */
+  const consumeCredits = useCallback(async (action: string) => {
     try {
-      const result = await operation();
-      toast({
-        title: "Sucesso!",
-        description: `${operationName} concluída. ${requiredAmount} crédito(s) consumido(s).`,
-      });
-      return result;
+      const response = await api.post(`/api/credits/consume/${action}`);
+      setBalance((prev) =>
+        prev
+          ? {
+              ...prev,
+              balance: response.data.new_balance,
+              total_used_month: prev.total_used_month + response.data.credits_consumed,
+              remaining_percent: (response.data.new_balance / prev.total_available_month) * 100,
+            }
+          : null
+      );
+      return response.data;
     } catch (error: any) {
-      // Check if it's a credit error from backend
-      if (error.response?.status === 402 || error.response?.data?.detail?.includes('crédito')) {
+      if (error.response?.status === 402) {
         toast({
           title: "Créditos insuficientes",
           description: "Seu saldo foi atualizado. Adquira mais créditos para continuar.",
@@ -85,18 +100,47 @@ export function useCredits() {
         });
       } else {
         toast({
-          title: "Erro na operação",
+          title: "Erro ao consumir créditos",
           description: error.response?.data?.detail || "Algo deu errado. Tente novamente.",
           variant: "destructive",
         });
       }
-      return null;
+      throw error;
     }
-  }, [checkCredits, toast]);
+  }, [toast]);
+
+  /**
+   * Reembolsa créditos (ex: geração falhou)
+   */
+  const refundCredits = useCallback(
+    async (action: string, reason: string = "Geração falhou") => {
+      try {
+        const response = await api.post(`/api/credits/refund/${action}`, { reason });
+        setBalance((prev) =>
+          prev
+            ? {
+                ...prev,
+                balance: response.data.new_balance,
+                total_used_month: prev.total_used_month - response.data.credits_refunded,
+                remaining_percent: (response.data.new_balance / prev.total_available_month) * 100,
+              }
+            : null
+        );
+        return response.data;
+      } catch (error) {
+        console.error("Erro ao reembolsar créditos:", error);
+        throw error;
+      }
+    },
+    []
+  );
 
   return {
+    balance,
+    checking,
+    fetchBalance,
     checkCredits,
-    consumeWithCheck,
-    checking
+    consumeCredits,
+    refundCredits,
   };
 }
