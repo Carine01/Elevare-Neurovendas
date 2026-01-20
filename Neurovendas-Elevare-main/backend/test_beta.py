@@ -1,5 +1,6 @@
 REM Executa o wrapper (usa PowerShell -NoProfile)
-C:\Users\Carine\Downloads\Neurovendas-Elevare-main\Neurovendas-Elevare-main\backend\tools\smoke_health_auth.cmd#!/usr/bin/env python
+C:\Users\Carine\Downloads\Neurovendas-Elevare-main\Neurovendas-Elevare-main\backend\tools\smoke_health_auth.cmd# Rode fora do VS Code (PowerShell -NoProfile ou CMD)
+git remote -vgit clone https://github.com/<sua-org>/<seu-repo>.git#!/usr/bin/env python
 """
 Teste simples do endpoint beta-login
 """
