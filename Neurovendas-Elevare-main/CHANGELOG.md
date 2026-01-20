@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.3.1] - 2026-01-20
+
+### 🎉 Novidades
+
+- **Endpoint `/api/auth/me`**: rota protegida por JWT para retornar dados do usuário.
+- **Fluxo de autenticação beta em memória**: helper `POST /api/auth/mock-create-beta` para desenvolvimento local sem dependência de MongoDB.
+
+### 🛠️ Ferramentas/Dev & Testes
+
+- **Scripts e utilitários locais**:
+  - `backend/start_server.py` e `backend/run_server.bat` para inicialização rápida (HOST/PORT via env).
+  - `backend/smoke_auth.py` e `backend/smoke_ebook.py` para smoke tests locais (saúde, auth e geração de ebook V2).
+  - `backend/tests/` com `conftest.py`, `test_local_auth.py` e `test_local_ebook.py`.
+- **Mocks de integrações**:
+  - `backend/emergentintegrations/` (módulo local) e `emergentintegrations_mock.py` para evitar dependências externas durante dev/teste.
+
+### 📚 Documentação
+
+- `.github/copilot-instructions.md`: Quickstart do agente, mapa de endpoints, limites/créditos, padrões de retries e checagens de créditos.
+- `DOCUMENTACAO_API.md`: Fluxos principais, smoke tests, troubleshooting e apêndice de payloads JSON.
+
+### ⚠️ Notas
+
+- Dependências: o pacote `emergentintegrations` é fornecido localmente no repositório e não precisa ser instalado via PyPI.
+- Ambiente Windows/PowerShell: em casos de erro de PSReadLine, recomenda-se usar PowerShell sem perfil (`-NoProfile`) ou `cmd.exe` para subir o backend.
+
+---
+
 ## [v2.3.0] - 2025-01-19
 
 ### 🎉 Novidades
