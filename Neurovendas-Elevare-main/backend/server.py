@@ -16,6 +16,14 @@ import resend
 
 load_dotenv()
 
+# Mock emergentintegrations se não estiver instalado
+try:
+    import emergentintegrations
+except ImportError:
+    import sys
+    sys.path.insert(0, os.path.dirname(__file__))
+    import emergentintegrations_mock as emergentintegrations
+
 # Import LucresIA
 from services.lucresia import LucresIA, PROMPTS_BIBLIOTECA, TEMPLATES_CONTEUDO
 from services.biblioteca_prompts import (
@@ -50,9 +58,11 @@ from services.gamma_service import (
 
 # Stripe Integration
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionResponse, CheckoutStatusResponse, CheckoutSessionRequest
+from utils.memory_auth import get_memory_user, create_memory_user
 
 # Import routers (Modular Architecture)
 from routers.brand_identity import router as brand_identity_router
+# from routers.auth import router as auth_router  # Desabilitado - usando endpoints em server.py
 
 # App initialization
 app = FastAPI(title="NeuroVendas by Elevare", version="2.0.0")
@@ -188,6 +198,69 @@ class ContentGenerateRequest(BaseModel):
     tema: str
     tipo: str = "post"
     tom: str = "profissional"
+
+# =============================================================================
+# Auth: GET /api/auth/me (monolítico)
+# =============================================================================
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+    token = auth_header.split(" ", 1)[1]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    user_id = payload.get("sub")
+    email = payload.get("email")
+
+    user = None
+    try:
+        if db is not None:
+            user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    except Exception:
+        user = None
+
+    if not user and email:
+        user = get_memory_user(email)
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
+
+    return {
+        "id": user.get("id", user_id or ""),
+        "email": user.get("email", email or ""),
+        "name": user.get("name", "Usuário"),
+        "role": user.get("role", "user"),
+        "plan": user.get("plan", user.get("subscription_plan", "free")),
+        "credits_remaining": user.get("credits_remaining", 0),
+        "created_at": user.get("created_at", datetime.now(timezone.utc).isoformat()),
+        "onboarding_completed": user.get("onboarding_completed", False),
+        "diagnosis_completed": user.get("diagnosis_completed", False),
+    }
+
+# =============================================================================
+# Dev helper: create beta user in memory (no DB) and return token
+# =============================================================================
+@app.post("/api/auth/mock-create-beta")
+async def mock_create_beta():
+    email = "beta@elevare.com"
+    user = get_memory_user(email)
+    if not user:
+        user = create_memory_user(email, "Usuário Beta", "beta_no_hash", str(uuid4()))
+        user.update({
+            "role": "user",
+            "plan": "beta_unlimited",
+            "credits_remaining": 99999,
+            "onboarding_completed": True,
+            "diagnosis_completed": True,
+        })
+    expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    payload = {"sub": user["id"], "email": user["email"], "exp": expire}
+    token = jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
+    return {"access_token": token, "user": user}
 
 class PersonaGenerateRequest(BaseModel):
     servico: str
@@ -814,7 +887,7 @@ async def startup_db_client():
     global client, db
     client = AsyncIOMotorClient(MONGO_URL)
     db = client[DB_NAME]
-    print(f"✅ NeuroVendas conectado ao MongoDB: {DB_NAME}")
+    print(f"[OK] NeuroVendas conectado ao MongoDB: {DB_NAME}")
     
     # Registra routers modulares
     app.include_router(brand_identity_router)
@@ -1293,12 +1366,42 @@ async def register(user_data: UserCreate):
         }
     }
 
+# BETA MODE CONFIG
+BETA_MODE = os.environ.get("BETA_MODE", "true").lower() == "true"
+BETA_PASSWORD = "beta2026"
+BETA_CREDITS = 99999
+
 @app.post("/api/auth/login", response_model=TokenResponse)
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
     
-    if not user or not verify_password(credentials.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Email ou senha inválidos")
+    # BETA MODE: aceita senha beta OU senha real
+    if BETA_MODE:
+        password_valid = (credentials.password == BETA_PASSWORD) or (user and verify_password(credentials.password, user.get("password_hash", "")))
+        
+        # Se não existe usuário, cria automaticamente em modo beta
+        if not user and credentials.password == BETA_PASSWORD:
+            user = {
+                "id": str(uuid4()),
+                "email": credentials.email,
+                "name": "Usuário Beta",
+                "password_hash": get_password_hash(BETA_PASSWORD),
+                "role": "user",
+                "plan": "beta_unlimited",
+                "credits_remaining": BETA_CREDITS,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "onboarding_completed": True,
+                "diagnosis_completed": True,
+                "xp": 500,
+                "level": 5
+            }
+            await db.users.insert_one(user)
+            password_valid = True
+    else:
+        password_valid = user and verify_password(credentials.password, user.get("password_hash", ""))
+    
+    if not user or not password_valid:
+        raise HTTPException(status_code=401, detail="Email ou senha inválidos (BETA: use 'beta2026')")
     
     await db.users.update_one(
         {"id": user["id"]},
@@ -1345,6 +1448,83 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         }
     }
 
+class BetaLoginRequest(BaseModel):
+    email: Optional[str] = None
+
+@app.post("/api/auth/beta-login")
+async def beta_quick_login(data: Optional[BetaLoginRequest] = None):
+    """Login rápido para BETA - cria/retorna usuário de teste automaticamente.
+    Aceita email opcional no body para usar como conta beta.
+    {"email": "teste@teste.com"}
+    """
+    if not BETA_MODE:
+        raise HTTPException(status_code=403, detail="Beta mode não habilitado")
+
+    beta_email = (data.email if data and data.email else "beta@elevare.com").strip().lower()
+    if not beta_email or "@" not in beta_email:
+        beta_email = "beta@elevare.com"
+
+    # Tenta via MongoDB, se falhar usa fallback em memória
+    try:
+        user = await db.users.find_one({"email": beta_email}, {"_id": 0})
+    except Exception:
+        user = get_memory_user(beta_email)
+        if not user:
+            user = create_memory_user(beta_email, "Usuário Beta", "beta_no_hash", str(uuid4()))
+
+    try:
+        if not user:
+            user = {
+                "id": str(uuid4()),
+                "email": beta_email,
+                "name": "Usuário Beta",
+                "password_hash": "beta_no_hash",
+                "role": "user",
+                "plan": "beta_unlimited",
+                "credits_remaining": BETA_CREDITS,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "onboarding_completed": True,
+                "diagnosis_completed": True,
+                "xp": 500,
+                "level": 5
+            }
+            await db.users.insert_one(user)
+        else:
+            if user.get("credits_remaining", 0) < 1000:
+                try:
+                    await db.users.update_one(
+                        {"email": beta_email},
+                        {"$set": {"credits_remaining": BETA_CREDITS, "plan": "beta_unlimited"}}
+                    )
+                    user["credits_remaining"] = BETA_CREDITS
+                except Exception:
+                    # Fallback memória
+                    user = get_memory_user(beta_email) or create_memory_user(beta_email, "Usuário Beta", "beta_no_hash", str(uuid4()))
+
+        expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+        payload = {"sub": user["id"], "email": user["email"], "exp": expire}
+        token = jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
+        return {
+            "access_token": token,
+            "user": {
+                "id": user["id"],
+                "email": user["email"],
+                "name": user["name"],
+                "role": user.get("role", "user"),
+                "onboarding_completed": user.get("onboarding_completed", True),
+                "diagnosis_completed": user.get("diagnosis_completed", True),
+                "subscription_plan": user.get("plan", "beta_unlimited"),
+                "xp": user.get("xp", 500),
+                "level": user.get("level", 5),
+                "credits_remaining": user.get("credits_remaining", BETA_CREDITS)
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Erro no beta-login: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+
 # =============================================================================
 # PASSWORD RECOVERY ROUTES
 # =============================================================================
@@ -1377,6 +1557,11 @@ async def forgot_password(data: PasswordResetRequest):
         "used": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
+
+# --- Simple ping endpoint for diagnostics (app-level) ---
+@app.get("/api/ping")
+async def ping():
+    return {"status": "ok"}
     
     # Enviar email com Resend
     try:

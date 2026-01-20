@@ -494,7 +494,7 @@ Retorne APENAS o conteúdo aperfeiçoado, sem comentários extras. Mantenha form
         
         # Registrar uso
         await db.usage_tracking.insert_one({
-            "user_id": current_user["id"]},
+            "user_id": current_user["id"],
             "action": "capitulo_aperfeicoado",
             "tipo": request.tipo_aperfeicoamento,
             "credits_used": credits_needed,

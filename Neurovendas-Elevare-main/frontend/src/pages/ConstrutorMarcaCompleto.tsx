@@ -160,6 +160,8 @@ export default function ConstrutorMarcaCompleto() {
   const [saving, setSaving] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [analyzingVoice, setAnalyzingVoice] = useState(false);
+  const [voiceAnalysis, setVoiceAnalysis] = useState<any>(null);
 
   // Tag input temporary values
   const [subSpecialtyInput, setSubSpecialtyInput] = useState("");
@@ -223,22 +225,26 @@ export default function ConstrutorMarcaCompleto() {
 
   const loadExistingData = async () => {
     try {
-      const response = await api.get("/api/brand-identity");
-      if (response.data.identity) {
-        setIdentity(response.data.identity);
+      const response = await api.get("/api/brand-identity/");
+      if (response.data) {
+        setIdentity(response.data);
+        toast({
+          title: "Identidade carregada",
+          description: "Seus dados foram recuperados com sucesso.",
+        });
       }
     } catch (error) {
-      console.log("No existing identity");
+      console.log("No existing identity - starting fresh");
     }
   };
 
   const autoSave = async () => {
     setAutoSaving(true);
     try {
-      await api.post("/api/brand-identity", identity);
+      await api.post("/api/brand-identity/", identity);
       setLastSaved(new Date());
     } catch (error) {
-      console.error("Auto-save failed");
+      console.error("Auto-save failed:", error);
     } finally {
       setAutoSaving(false);
     }
@@ -258,9 +264,8 @@ export default function ConstrutorMarcaCompleto() {
 
     setSaving(true);
     try {
-      await api.post("/api/brand-identity", {
+      await api.post("/api/brand-identity/", {
         ...identity,
-        setup_completed: true,
       });
       
       toast({
@@ -269,10 +274,10 @@ export default function ConstrutorMarcaCompleto() {
       });
       
       setTimeout(() => navigate("/dashboard"), 1500);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar. Tente novamente.",
+        description: error.response?.data?.detail || "Não foi possível salvar. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -320,6 +325,37 @@ export default function ConstrutorMarcaCompleto() {
         style_notes: "",
       });
       localStorage.removeItem("elevare_brand_profile");
+      setVoiceAnalysis(null);
+    }
+  };
+
+  const handleAnalyzeVoice = async () => {
+    if (!identity.voice_samples || identity.voice_samples.length < 100) {
+      toast({
+        title: "Amostras insuficientes",
+        description: "Adicione pelo menos 100 caracteres de amostras de voz para análise.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAnalyzingVoice(true);
+    try {
+      const response = await api.post("/api/brand-identity/analyze-voice");
+      setVoiceAnalysis(response.data);
+      
+      toast({
+        title: "✅ Análise concluída!",
+        description: `Detectamos ${response.data.formality_detected} com ${response.data.emoji_frequency.toFixed(1)} emojis por 100 caracteres.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro na análise",
+        description: error.response?.data?.detail || "Não foi possível analisar. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setAnalyzingVoice(false);
     }
   };
 
@@ -466,6 +502,39 @@ export default function ConstrutorMarcaCompleto() {
                       </span>
                     </div>
                   </div>
+                  
+                  {voiceAnalysis && (
+                    <div className="mt-3 p-2.5 bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/30 dark:to-violet-950/30 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+                      <div className="text-xs font-semibold text-indigo-900 dark:text-indigo-100 mb-2 flex items-center gap-1">
+                        ✨ Análise IA
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Estilo:</span>
+                          <span className="font-medium text-indigo-700 dark:text-indigo-300">
+                            {voiceAnalysis.formality_detected === "muito_informal" ? "Muito Casual" :
+                             voiceAnalysis.formality_detected === "informal" ? "Casual" :
+                             voiceAnalysis.formality_detected === "equilibrada" ? "Equilibrado" :
+                             voiceAnalysis.formality_detected === "formal" ? "Formal" : "Muito Formal"}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Emojis:</span>
+                          <span className="font-medium text-indigo-700 dark:text-indigo-300">
+                            {voiceAnalysis.emoji_frequency.toFixed(1)}/100
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Complexidade:</span>
+                          <span className="font-medium text-indigo-700 dark:text-indigo-300">
+                            {voiceAnalysis.vocabulary_level === "simple" ? "Simples" :
+                             voiceAnalysis.vocabulary_level === "moderate" ? "Moderado" : "Avançado"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {identity.communication_style.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {identity.communication_style.slice(0, 3).map(s => (
@@ -693,9 +762,77 @@ export default function ConstrutorMarcaCompleto() {
                     onChange={(e) => setIdentity(prev => ({ ...prev, voice_samples: e.target.value }))}
                     className="input-primary resize-none"
                   />
-                  <div className="text-right text-xs text-gray-500 mt-1">
-                    Mínimo recomendado: 500 caracteres
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="text-xs text-gray-500">
+                      {identity.voice_samples.length} / 100+ caracteres
+                    </div>
+                    <button
+                      onClick={handleAnalyzeVoice}
+                      disabled={analyzingVoice || identity.voice_samples.length < 100}
+                      className="btn-secondary text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {analyzingVoice ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Analisando...
+                        </>
+                      ) : (
+                        <>
+                          🔬 Analisar Meu Estilo
+                        </>
+                      )}
+                    </button>
                   </div>
+                  
+                  {voiceAnalysis && (
+                    <div className="mt-3 p-4 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+                      <div className="text-sm font-medium text-indigo-900 dark:text-indigo-100 mb-2">
+                        ✨ Análise do Seu Estilo
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <div>
+                          <div className="text-gray-600 dark:text-gray-400">Formalidade</div>
+                          <div className="font-medium text-indigo-700 dark:text-indigo-300">
+                            {voiceAnalysis.formality_detected === "muito_informal" ? "Muito Informal" :
+                             voiceAnalysis.formality_detected === "informal" ? "Informal" :
+                             voiceAnalysis.formality_detected === "equilibrada" ? "Equilibrada" :
+                             voiceAnalysis.formality_detected === "formal" ? "Formal" : "Muito Formal"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600 dark:text-gray-400">Emojis</div>
+                          <div className="font-medium text-indigo-700 dark:text-indigo-300">
+                            {voiceAnalysis.emoji_frequency.toFixed(1)}/100 chars
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600 dark:text-gray-400">Frases</div>
+                          <div className="font-medium text-indigo-700 dark:text-indigo-300">
+                            {voiceAnalysis.avg_sentence_length.toFixed(0)} palavras
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-600 dark:text-gray-400">Vocabulário</div>
+                          <div className="font-medium text-indigo-700 dark:text-indigo-300">
+                            {voiceAnalysis.vocabulary_level === "simple" ? "Simples" :
+                             voiceAnalysis.vocabulary_level === "moderate" ? "Moderado" : "Complexo"}
+                          </div>
+                        </div>
+                      </div>
+                      {voiceAnalysis.common_phrases && voiceAnalysis.common_phrases.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-800">
+                          <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">Expressões comuns:</div>
+                          <div className="flex flex-wrap gap-1">
+                            {voiceAnalysis.common_phrases.slice(0, 5).map((phrase: string, i: number) => (
+                              <span key={i} className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded text-xs">
+                                "{phrase}"
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </FormField>
 
                 <FormField label="Como você se comunica?" hint="Selecione todas as características que definem sua comunicação">

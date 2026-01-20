@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { Sparkles, Loader2, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Sparkles, Loader2, Eye, EyeOff, AlertCircle, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 
 export default function Login() {
   const location = useLocation();
@@ -16,6 +17,7 @@ export default function Login() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+  const [betaLoading, setBetaLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -59,6 +61,40 @@ export default function Login() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBetaLogin = async () => {
+    setBetaLoading(true);
+    setError("");
+
+    try {
+      // Envia o email digitado, se houver; backend usa padrão se vazio
+      const response = await api.post('/api/auth/beta-login', { email });
+      
+      // Salvar token e usuário
+      localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      
+      toast({
+        title: "🚀 Login Beta realizado!",
+        description: `Bem-vindo(a), ${response.data.user.name}! Você tem ${response.data.user.credits_remaining} créditos.`,
+      });
+      
+      // Redirecionar para dashboard
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 500);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail || "Erro no login beta.";
+      setError(errorMessage);
+      toast({
+        title: "Erro no login beta",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setBetaLoading(false);
     }
   };
 
@@ -155,6 +191,35 @@ export default function Login() {
                 "Entrar"
               )}
             </Button>
+
+            {/* Botão Beta Login */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-gray-500">ou</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              onClick={handleBetaLogin}
+              disabled={betaLoading}
+              className="w-full py-6 text-base font-semibold bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              {betaLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-5 h-5 mr-2" />
+                  Acesso Beta Rápido (99.999 créditos)
+                </>
+              )}
+            </Button>
           </form>
 
           <div className="mt-8 text-center">
@@ -163,6 +228,9 @@ export default function Login() {
               <Link to="/register" className="text-primary hover:text-primary/80 font-semibold transition-colors duration-300">
                 Criar conta grátis
               </Link>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              💡 Senha para qualquer conta: <code className="px-2 py-1 bg-gray-100 rounded">beta2026</code>
             </p>
           </div>
         </Card>

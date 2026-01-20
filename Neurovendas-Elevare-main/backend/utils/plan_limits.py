@@ -40,6 +40,18 @@ PLAN_LIMITS = {
         "voice_analysis": -1,
         "total_criacoes": -1
     },
+    "beta_unlimited": {
+        # Beta unlimited = acesso total sem limites
+        "posts_mes": -1,
+        "ebooks_mes": -1,
+        "stories_mes": -1,
+        "blogs_mes": -1,
+        "diagnosticos_mes": -1,
+        "whatsapp_scripts_mes": -1,
+        "brand_identity_creation": -1,
+        "voice_analysis": -1,
+        "total_criacoes": -1
+    },
     "essencial": {
         "posts_mes": 30,
         "ebooks_mes": 4,

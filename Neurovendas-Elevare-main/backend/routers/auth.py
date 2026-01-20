@@ -19,6 +19,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 logger = logging.getLogger("elevare.auth")
 
 # Config
+BETA_MODE = os.environ.get("BETA_MODE", "true").lower() == "true"
+BETA_PASSWORD = "beta2026"  # Senha padrão para todos no modo beta
+BETA_CREDITS = 99999  # Créditos praticamente ilimitados para beta
+
 JWT_SECRET = os.environ.get("JWT_SECRET", "elevare-secret-key-change-this")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
@@ -104,7 +108,37 @@ async def register(user_data: UserCreate, db = Depends(get_db)):
     existing_user = await db.users.find_one({"email": user_data.email.lower()})
     if existing_user:
         logger.warning(f"Registro falhou - email já existe: {user_data.email}")
-        raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # No modo BETA, se usuário já existe, retorna login ao invés de erro
+        if BETA_MODE:
+            logger.info(f"BETA MODE: Fazendo login automático para {user_data.email}")
+            access_token = create_access_token(data={"sub": existing_user["id"]})
+            
+            # Atualiza créditos se estiverem baixos
+            if existing_user.get("credits_remaining", 0) < 1000:
+                await db.users.update_one(
+                    {"email": user_data.email.lower()},
+                    {"$set": {"credits_remaining": BETA_CREDITS, "subscription_plan": "beta_unlimited"}}
+                )
+                existing_user["credits_remaining"] = BETA_CREDITS
+                existing_user["subscription_plan"] = "beta_unlimited"
+            
+            user_response = UserResponse(
+                id=existing_user["id"],
+                email=existing_user["email"],
+                name=existing_user["name"],
+                role=existing_user.get("role", "user"),
+                onboarding_completed=existing_user.get("onboarding_completed", True),
+                diagnosis_completed=existing_user.get("diagnosis_completed", False),
+                subscription_plan=existing_user.get("subscription_plan", "beta_unlimited"),
+                xp=existing_user.get("xp", 0),
+                level=existing_user.get("level", 1),
+                credits_remaining=existing_user.get("credits_remaining", BETA_CREDITS),
+            )
+            
+            return TokenResponse(access_token=access_token, user=user_response)
+        else:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
     from uuid import uuid4
     user_id = str(uuid4())
@@ -116,8 +150,8 @@ async def register(user_data: UserCreate, db = Depends(get_db)):
         "name": user_data.name,
         "password": hashed_password,
         "role": "user",
-        "subscription_plan": "beta",
-        "credits_remaining": 100,
+        "subscription_plan": "beta_unlimited",
+        "credits_remaining": BETA_CREDITS if BETA_MODE else 100,
         "onboarding_completed": True,  # Usuário que se registra já completou onboarding básico
         "diagnosis_completed": False,  # Diagnóstico Premium ainda não feito
         "landing_quiz_completed": True, # Veio do quiz da landing
@@ -127,17 +161,22 @@ async def register(user_data: UserCreate, db = Depends(get_db)):
         "updated_at": datetime.now(timezone.utc),
     }
     
-    await db.users.insert_one(new_user)
-    logger.info(f"Usuário registrado com sucesso: {user_data.email}, id={user_id}")
-    
-    # Enviar email de boas-vindas (async, não bloqueia)
     try:
-        from services.email_service import get_email_service
-        email_service = get_email_service()
-        await email_service.send_welcome_email(user_data.email, user_data.name)
-        logger.info(f"Email de boas-vindas enviado para: {user_data.email}")
+        await db.users.insert_one(new_user)
+        logger.info(f"Usuário registrado com sucesso: {user_data.email}, id={user_id}")
     except Exception as e:
-        logger.warning(f"Falha ao enviar email de boas-vindas: {str(e)}")
+        logger.error(f"Erro ao inserir usuário no MongoDB: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+    # Enviar email de boas-vindas (async, não bloqueia) - apenas se não for beta
+    if not BETA_MODE:
+        try:
+            from services.email_service import get_email_service
+            email_service = get_email_service()
+            await email_service.send_welcome_email(user_data.email, user_data.name)
+            logger.info(f"Email de boas-vindas enviado para: {user_data.email}")
+        except Exception as e:
+            logger.warning(f"Falha ao enviar email de boas-vindas: {str(e)}")
     
     access_token = create_access_token(data={"sub": user_id})
     
@@ -162,11 +201,18 @@ async def login(credentials: UserLogin, db = Depends(get_db)):
     logger.info(f"Tentativa de login: {credentials.email}")
     
     user = await db.users.find_one({"email": credentials.email.lower()})
-    if not user or not verify_password(credentials.password, user["password"]):
+    
+    # Modo BETA: aceita senha beta OU senha real
+    if BETA_MODE:
+        password_valid = (credentials.password == BETA_PASSWORD) or (user and verify_password(credentials.password, user["password"]))
+    else:
+        password_valid = user and verify_password(credentials.password, user["password"])
+    
+    if not user or not password_valid:
         logger.warning(f"Login falhou - credenciais inválidas: {credentials.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password (BETA: use 'beta2026' como senha)"
         )
     
     access_token = create_access_token(data={"sub": user["id"]})
@@ -202,3 +248,65 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         level=current_user.get("level", 1),
         credits_remaining=current_user.get("credits_remaining", 0),
     )
+
+@router.post("/beta-login", response_model=TokenResponse)
+async def beta_quick_login(db = Depends(get_db)):
+    """
+    Login rápido para BETA - cria/retorna usuário de teste automaticamente
+    Senha universal: beta2026
+    """
+    if not BETA_MODE:
+        raise HTTPException(status_code=403, detail="Beta mode not enabled")
+    
+    beta_email = "beta@elevare.com"
+    
+    # Busca ou cria usuário beta
+    user = await db.users.find_one({"email": beta_email})
+    
+    if not user:
+        from uuid import uuid4
+        user_id = str(uuid4())
+        user = {
+            "id": user_id,
+            "email": beta_email,
+            "name": "Usuário Beta",
+            "password": hash_password(BETA_PASSWORD),
+            "role": "user",
+            "subscription_plan": "beta_unlimited",
+            "credits_remaining": BETA_CREDITS,
+            "onboarding_completed": True,
+            "diagnosis_completed": True,
+            "landing_quiz_completed": True,
+            "xp": 500,
+            "level": 5,
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+        await db.users.insert_one(user)
+        logger.info(f"Usuário beta criado: {beta_email}")
+    else:
+        # Atualiza créditos se necessário
+        if user.get("credits_remaining", 0) < 1000:
+            await db.users.update_one(
+                {"email": beta_email},
+                {"$set": {"credits_remaining": BETA_CREDITS, "subscription_plan": "beta_unlimited"}}
+            )
+            user["credits_remaining"] = BETA_CREDITS
+            user["subscription_plan"] = "beta_unlimited"
+    
+    access_token = create_access_token(data={"sub": user["id"]})
+    
+    user_response = UserResponse(
+        id=user["id"],
+        email=user["email"],
+        name=user["name"],
+        role=user.get("role", "user"),
+        onboarding_completed=user.get("onboarding_completed", False),
+        diagnosis_completed=user.get("diagnosis_completed", False),
+        subscription_plan=user.get("subscription_plan", "free"),
+        xp=user.get("xp", 0),
+        level=user.get("level", 1),
+        credits_remaining=user.get("credits_remaining", 0),
+    )
+    
+    return TokenResponse(access_token=access_token, user=user_response)
