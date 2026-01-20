@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+REM Executa o wrapper (usa PowerShell -NoProfile)
+C:\Users\Carine\Downloads\Neurovendas-Elevare-main\Neurovendas-Elevare-main\backend\tools\smoke_health_auth.cmd#!/usr/bin/env python
 """
 Teste simples do endpoint beta-login
 """
