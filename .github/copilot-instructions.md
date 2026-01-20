@@ -1,3 +1,209 @@
+# NeuroVendas – AI Agent Quickstart (Concise)
+
+## What This Project Is
+- Backend: FastAPI (in transition from monolithic `backend/server.py` to modular routers in `backend/routers/*`).
+- Frontend: Vite + React 18 + TypeScript + Tailwind + shadcn/ui.
+- DB: MongoDB via async Motor (collections: `users`, `ebooks`, `leads`, `campaigns`, ...).
+- AI: `emergentintegrations.llm.chat` (Gemini primary; OpenAI fallback) + Stripe + Resend.
+
+## Run Local
+- Backend: `cd backend && pip install -r requirements.txt && python server.py` (port 8000). Optional: `run_server.bat`.
+- Frontend: `cd frontend && npm install && npm run dev` (port 3000).
+- Env: `.env` (backend) and `.env` (frontend). Key vars: `MONGO_URL`, `DB_NAME`, `JWT_SECRET`, `EMERGENT_LLM_KEY`, `OPENAI_API_KEY`, `STRIPE_API_KEY`, `RESEND_API_KEY`, and `VITE_BACKEND_URL`.
+
+## Patterns You Must Follow
+- Routers-first: add endpoints under `backend/routers/` (not `server.py`). Share auth via `get_current_user`.
+- Credits: always call `check_and_raise_limit(user, "operation_key")` and define cost in `backend/utils/plan_limits.py::COST_MAP`.
+- AI calls: use `emergentintegrations.llm.chat.LlmChat` with retry wrapper `utils/ai_retry.ai_call_with_retry`.
+- DB ops: async Motor only (`await db.<collection>.find_one(...)`, `insert_one`, etc.).
+- Timeouts: AI endpoints can take 60–180s; frontend `src/lib/api.ts` sets `timeout: 300000`.
+
+## Minimal AI Call Example (Backend)
+```python
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+from utils.ai_retry import ai_call_with_retry
+
+llm = LlmChat(model="gemini/gemini-2.0-flash-exp")
+resp = await ai_call_with_retry(llm.chat_async, [UserMessage(content=prompt)], timeout=60)
+```
+
+## Key Services and Entry Points
+- Ebook V2 (preferido): lógica em `backend/services/ebook_generator_v2.py`; ROTA ATUAL no monolítico `backend/server.py` → `POST /api/ebook/generate-v2`.
+- LucresIA prompts: `backend/services/lucresia.py` + `backend/services/biblioteca_prompts.py`.
+- Gamma (legado) mantido por compat: `backend/services/gamma_service.py` (evite para novos fluxos).
+
+## Testing and Debugging
+- Run tests: `pytest backend/tests/test_neurovendas_features.py -v`.
+- Mock AI: patch `emergentintegrations.llm.chat.LlmChat.chat_async` (see tests for pattern).
+- Health: `GET /api/health` (platform requires <5s response).
+ - Payloads prontos: ver apêndice "Exemplos de Payloads (JSON)" em DOCUMENTACAO_API.md.
+
+## Frontend Conventions
+- API client: `src/lib/api.ts` centralizes base URL, 5-min timeout, and JWT injection.
+- Routing: `src/App.tsx` groups public vs protected routes; use `useAuth()` for auth state.
+- Long ops UX: show loading, no auto-retry; surface explicit Retry with preserved form state.
+
+## Refactoring Context
+- Migração em andamento do monolito para routers: priorize lógica em `backend/services/*` e exposição via `backend/routers/*`. Schemas Pydantic em `backend/schemas/*`.
+
+## Como criar um novo endpoint de IA (checklist)
+1) Router: crie rota em `backend/routers/<feature>.py` com `APIRouter(prefix="/api/<feature>")`, use `Depends(get_current_user)` e `get_db()` do `server.py`.
+2) Limites/Créditos: para limite mensal use `await check_and_raise_limit(db, current_user, "<tipo>")`; para crédito unitário, defina a chave em `COST_MAP` e desconte após sucesso.
+3) Chamada de IA (resiliente): use `LlmChat` + `ai_call_with_retry`.
+```python
+from emergentintegrations.llm.chat import LlmChat, UserMessage
+from utils.ai_retry import ai_call_with_retry
+
+llm = LlmChat(model="gemini/gemini-2.0-flash-exp")
+resp = await ai_call_with_retry(llm.chat_async, [UserMessage(content=prompt)], timeout=60)
+```
+4) Banco (Motor assíncrono): `await db.<colecao>.insert_one({...})`, sempre async.
+5) Telemetria: registre em `db.usage_tracking.insert_one({...})` e incremente XP quando aplicável.
+6) Testes: crie teste em `backend/tests/` e faça mock de `LlmChat.chat_async` com `AsyncMock`.
+
+## Smoke Tests Locais (5 minutos)
+- Backend (porta 8000):
+```powershell
+cd backend
+pip install -r requirements.txt
+python server.py
+```
+- Health básico e detalhado:
+```powershell
+Invoke-RestMethod http://localhost:8000/api/health -Method GET
+Invoke-RestMethod http://localhost:8000/api/health/detailed -Method GET
+```
+- Token rápido (BETA):
+```powershell
+$login = Invoke-RestMethod http://localhost:8000/api/auth/beta-login -Method POST
+$token = $login.access_token
+```
+- Conferir usuário logado:
+```powershell
+Invoke-RestMethod http://localhost:8000/api/auth/me -Headers @{ Authorization = "Bearer $token" } -Method GET
+```
+- Gerar E-book V2 (motor interno):
+```powershell
+$body = @{ title = "Guia Rápido"; topic = "Marketing de Estética"; audience = "Dermatos e esteticistas"; tone = "profissional"; num_chapters = 3 } | ConvertTo-Json
+Invoke-RestMethod http://localhost:8000/api/ebook/generate-v2 -Headers @{ Authorization = "Bearer $token"; "Content-Type" = "application/json" } -Method POST -Body $body
+```
+- Frontend (porta 3000):
+```powershell
+cd ../frontend
+npm install
+npm run dev
+```
+
+## Mapa Rápido de Endpoints (Routers)
+- Auth (`/api/auth`): `POST /register`, `POST /login`, `GET /me`, `POST /beta-login` (arquivo: `backend/routers/auth.py`).
+- Dashboard (`/api/dashboard`): `GET /stats` (arquivo: `backend/routers/dashboard.py`).
+- AI (`/api/ai`): `POST /generate-content`, `POST /generate-carousel`, `GET /history`, `GET /usage` (arquivo: `backend/routers/ai.py`).
+- Ebooks (prefixo genérico `/api`): `POST /gamma/create-ebook`, `GET /ebooks/list`, `GET /ebooks/{id}`, `DELETE /ebooks/{id}`, `POST /ebooks/generate-copy`, `POST /ebooks/improve-chapter` (arquivo: `backend/routers/ebooks.py`).
+- Brand Identity (`/api/brand-identity`): `POST /`, `GET /`, `POST /analyze-voice`, `DELETE /`, `GET /status` (arquivo: `backend/routers/brand_identity.py`).
+- Credits (`/api/credits`): `GET /balance`, `POST /check/{action}`, `POST /consume/{action}`, `POST /refund/{action}`, `GET /history` (arquivo: `backend/routers/credits.py`).
+- Diagnosis (`/api/diagnosis`): `POST /complete`, `POST /skip`, `GET /history` (arquivo: `backend/routers/diagnosis.py`).
+- Onboarding (`/api/onboarding`): `POST /complete`, `GET /status` (arquivo: `backend/routers/onboarding.py`).
+- Payments (`/api/payments`): `GET /plans`, `POST /create-checkout`, `GET /status/{session_id}`, `POST /webhook`, `GET /subscription`, `GET /history` (arquivo: `backend/routers/payments.py`).
+- Health (monólito): `GET /api/health`, `GET /api/health/detailed`, `POST /api/health/test-email` (arquivo: `backend/server.py`).
+- Ebook V2 (monólito): `POST /api/ebook/generate-v2` (arquivo: `backend/server.py`).
+
+## Custos e Limites (crítico para agentes)
+- Créditos por operação (COST_MAP) — ver `backend/utils/plan_limits.py`:
+  - `ai_generation`: 5
+  - `ebook_generation`: 100
+  - `carousel`: 20
+  - `copy_divulgacao`: 20
+  - `aperfeicoar_capitulo`: 15
+- Limites por plano (PLAN_LIMITS) — resumo prático:
+  - `free`: total ~10 criações/mês; `ebooks_mes=1`; demais com limites baixos.
+  - `profissional`: `posts_mes=50`, `ebooks_mes=6`, `blogs_mes=4`, total 50.
+  - `premium`: ilimitado.
+  - `beta`/`beta_unlimited`: ilimitado (estado atual comum em dev/staging).
+- Regras de uso:
+  - Para operações mensais: `await check_and_raise_limit(db, current_user, "<tipo>")`.
+  - Para operações por crédito: valide saldo e desconte após sucesso; registre em `usage_tracking`.
+
+## Frontend – Mapa de Rotas
+- Públicas: `/`, `/landing`, `/landing-new`, `/waitlist`, `/login`, `/register`, `/quick-register-presence`, `/forgot-password`, `/hub`, `/diagnostico-gratuito`, `/analise-presenca-digital`, `/cadastro-plataforma`, `/diagnostics-complete`, `/terms`, `/privacy` (arquivo: `frontend/src/App.tsx`).
+- Protegidas (`/dashboard/*`):
+  - `/dashboard` (Dashboard principal)
+  - `/dashboard/robo-produtor` (Gerador de conteúdo/carrossel)
+  - `/dashboard/stories` (Sequências de stories)
+  - `/dashboard/ebooks` (Wizard/lista de e-books)
+  - `/dashboard/leads`, `/dashboard/planos`, `/dashboard/biblioteca`, `/dashboard/construtor-marca`, `/dashboard/radar-bio`, `/dashboard/diagnostico-premium`, `/dashboard/creditos`, `/dashboard/chat`, `/dashboard/calendario`, `/dashboard/blog` (arquivo: `frontend/src/App.tsx`).
+
+## Dashboard → APIs (mapeamento prático)
+- Criar Post Estratégico (CTA do Dashboard → `RoboProdutor`):
+  - `POST /api/ai/generate-content` (arquivo: `backend/routers/ai.py`).
+  - `POST /api/ai/generate-carousel` (carrosséis) (arquivo: `backend/routers/ai.py`).
+- Stories (`/dashboard/stories`): usa os mesmos padrões de geração de conteúdo/carrossel (variando `tipo` no payload quando aplicável).
+- E-books (`/dashboard/ebooks`):
+  - `GET /api/ebooks/list` (listar existentes) (arquivo: `backend/routers/ebooks.py`).
+  - `POST /api/ebook/generate-v2` (geração interna V2) (arquivo: `backend/server.py`).
+  - `POST /api/ebooks/generate-copy` (copy de divulgação) (arquivo: `backend/routers/ebooks.py`).
+  - `POST /api/ebooks/improve-chapter` (aperfeiçoar capítulo) (arquivo: `backend/routers/ebooks.py`).
+- Construtor de Marca (`/dashboard/construtor-marca`): CRUD e análise em `backend/routers/brand_identity.py`.
+- Métricas do Dashboard: `GET /api/dashboard/stats` (arquivo: `backend/routers/dashboard.py`).
+
+Notas
+- Autenticação: o frontend injeta JWT automaticamente via `frontend/src/lib/api.ts`.
+- Tempo de request: até 300s para operações de IA; permita retry manual no frontend.
+
+## Frontend – Rota → Componente
+- `/dashboard` → `frontend/src/pages/Dashboard.tsx`
+- `/dashboard/robo-produtor` → `frontend/src/pages/RoboProdutor.tsx`
+- `/dashboard/ebooks` → `frontend/src/pages/EbooksPage.tsx`
+- `/dashboard/construtor-marca` → `frontend/src/pages/ConstrutorMarcaCompleto.tsx`
+- `/dashboard/leads` → `frontend/src/pages/Leads.tsx`
+- `/dashboard/planos` → `frontend/src/pages/Plans.tsx`
+- `/dashboard/stories` → `frontend/src/pages/StorySequences.tsx`
+- `/dashboard/blog` → `frontend/src/pages/BlogElevare.tsx`
+- `/dashboard/calendario` → `frontend/src/pages/CalendarioElevare.tsx`
+- `/dashboard/radar-bio` → `frontend/src/pages/RadarBio.tsx`
+- `/dashboard/chat` → `frontend/src/pages/LucresIAChat.tsx`
+
+## Frontend – Componente → Endpoint(s)
+- `Dashboard.tsx`: `GET /api/dashboard/stats`.
+- `RoboProdutor.tsx`: `GET /api/ai/carousel-options` (monólito), `POST /api/ai/generate-carousel`, `POST /api/ai/generate-content`.
+- `EbooksPage.tsx`: fluxo atual usa Anthropic via `fetch` (vars `VITE_ANTHROPIC_*`). Para geração interna preferida, use backend `POST /api/ebook/generate-v2` (monólito) e listagem via `GET /api/ebooks/list`.
+- `ConstrutorMarcaCompleto.tsx`: `GET/POST /api/brand-identity`, `POST /api/brand-identity/analyze-voice`.
+- `CalendarioElevare.tsx`: consulta `GET /api/brand-identity` para contexto.
+- `LucresIAChat.tsx`: integra chat (ver backend de IA em `backend/routers/ai.py`).
+
+## Página → Ações (CTAs) → Endpoints
+- `Dashboard`:
+  - Criar Post Estratégico → abre `RoboProdutor` → `POST /api/ai/generate-content`, `POST /api/ai/generate-carousel`.
+  - Gerenciar Leads → `GET /api/leads`, `POST /api/leads`, `PUT /api/leads/{id}`, `DELETE /api/leads/{id}` (monólito em `backend/server.py`).
+
+- `RoboProdutor`:
+  - Carregar opções de carrossel → `GET /api/ai/carousel-options` (monólito em `backend/server.py`).
+  - Gerar Carrossel → `POST /api/ai/generate-carousel` (aplica `check_and_raise_limit('carousel')`).
+  - Gerar Conteúdo (post/reels/stories) → `POST /api/ai/generate-content` (aplica limites por tipo). 
+  - Contexto de marca (opcional) → `GET /api/brand-identity`.
+
+- `EbooksPage`:
+  - Geração interna recomendada → `POST /api/ebook/generate-v2` (monólito em `backend/server.py`).
+  - Listar e-books → `GET /api/ebooks/list`.
+  - Copy de divulgação → `POST /api/ebooks/generate-copy` (consome `COST_MAP['copy_divulgacao']`).
+  - Aperfeiçoar capítulo → `POST /api/ebooks/improve-chapter` (consome `COST_MAP['aperfeicoar_capitulo']`).
+
+- `ConstrutorMarcaCompleto`:
+  - Carregar identidade → `GET /api/brand-identity`.
+  - Salvar/atualizar identidade → `POST /api/brand-identity`.
+  - Analisar voz → `POST /api/brand-identity/analyze-voice`.
+
+- `Leads`:
+  - Listar → `GET /api/leads`.
+  - Criar → `POST /api/leads`.
+  - Atualizar → `PUT /api/leads/{lead_id}`.
+  - Excluir → `DELETE /api/leads/{lead_id}`.
+
+## Branching and Commits (Short)
+- Small, low-risk changes: commit to `main`. New endpoints/features: `feature/*` with short lifespan (<3 days).
+- Commit messages document architectural decisions (security, validation, type safety, async UX, export robustness).
+
+---
+
 # NeuroVendas by Elevare - AI Coding Guide
 
 ## Architecture Overview
