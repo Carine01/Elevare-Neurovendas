@@ -3,6 +3,7 @@ import './index.css';
 
 // API Service
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const RADAR_URL = process.env.REACT_APP_RADAR_URL || 'http://localhost:3000';
 
 const api = {
   searchImages: async (query, page = 1, perPage = 20, orientation = 'portrait') => {
@@ -253,6 +254,31 @@ const api = {
     });
     return response.json();
   },
+  // Radar de Tendências
+  buscarTendencias: async (termos, categoria = 'skincare', periodo = '7dias') => {
+    const response = await fetch(`${RADAR_URL}/api/tendencias`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ termos, categoria, periodo }),
+    });
+    return response.json();
+  },
+  buscarTendenciasAuto: async () => {
+    const response = await fetch(`${RADAR_URL}/api/tendencias/auto`);
+    return response.json();
+  },
+  analisarHashtags: async (hashtags) => {
+    const response = await fetch(`${RADAR_URL}/api/hashtags/analisar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hashtags }),
+    });
+    return response.json();
+  },
+  radarHealth: async () => {
+    const response = await fetch(`${RADAR_URL}/health`);
+    return response.json();
+  },
 };
 
 // Format data
@@ -321,6 +347,7 @@ function App() {
   const [showEditor, setShowEditor] = useState(false);
   const [showBrandConfig, setShowBrandConfig] = useState(false);
   const [showBlogCreator, setShowBlogCreator] = useState(false);
+  const [showRadar, setShowRadar] = useState(false);
   
   // Brand Profile state
   const [brandProfile, setBrandProfile] = useState(null);
@@ -348,6 +375,13 @@ function App() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
+  
+  // 📊 Radar de Tendências
+  const [radarTendencias, setRadarTendencias] = useState([]);
+  const [loadingRadar, setLoadingRadar] = useState(false);
+  const [radarTermos, setRadarTermos] = useState(['skincare', 'harmonização facial']);
+  const [radarCategoria, setRadarCategoria] = useState('skincare');
+  const [radarHealth, setRadarHealth] = useState(null);
   
   // 📊 SEO
   const [seoScore, setSeoScore] = useState(null);
@@ -1276,6 +1310,13 @@ ${post.cta}
               style={{ backgroundColor: '#10B981', color: '#FFFFFF' }}
             >
               📝 Criar Blog
+            </button>
+            <button
+              className="btn"
+              onClick={() => setShowRadar(true)}
+              style={{ backgroundColor: '#F59E0B', color: '#FFFFFF' }}
+            >
+              📊 Radar de Tendências
             </button>
             <button
               className="btn"
@@ -3078,6 +3119,308 @@ ${post.cta}
                 ✕ Fechar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* RADAR DE TENDÊNCIAS MODAL */}
+      {showRadar && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          padding: '2rem'
+        }}>
+          <div style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '1200px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            padding: '2rem',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.25)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#1F2937', margin: 0 }}>
+                📊 Radar de Tendências
+              </h2>
+              <button
+                onClick={() => setShowRadar(false)}
+                style={{
+                  backgroundColor: '#EF4444',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0.5rem 1rem',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                ✕ Fechar
+              </button>
+            </div>
+
+            {/* Health Status */}
+            <div style={{
+              backgroundColor: radarHealth?.status === 'online' ? '#D1FAE5' : '#FEE2E2',
+              padding: '1rem',
+              borderRadius: '8px',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <strong>{radarHealth?.status === 'online' ? '✅ Servidor Online' : '❌ Servidor Offline'}</strong>
+                {radarHealth && (
+                  <div style={{ fontSize: '0.875rem', color: '#6B7280', marginTop: '0.25rem' }}>
+                    APIs: YouTube {radarHealth.apis?.youtube ? '✓' : '✗'} | 
+                    Twitter {radarHealth.apis?.twitter ? '✓' : '✗'} | 
+                    Instagram {radarHealth.apis?.instagram ? '✓' : '✗'} | 
+                    Reddit {radarHealth.apis?.reddit ? '✓' : '✗'}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const health = await api.radarHealth();
+                    setRadarHealth(health);
+                  } catch (error) {
+                    setRadarHealth({ status: 'offline' });
+                  }
+                }}
+                style={{
+                  backgroundColor: '#3B82F6',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '0.5rem 1rem',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem'
+                }}
+              >
+                🔄 Verificar Status
+              </button>
+            </div>
+
+            {/* Form de Busca */}
+            <div style={{
+              backgroundColor: '#F3F4F6',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              marginBottom: '1.5rem'
+            }}>
+              <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1rem' }}>
+                🔍 Buscar Tendências
+              </h3>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
+                    Termos de Busca (separe por vírgula)
+                  </label>
+                  <input
+                    type="text"
+                    value={radarTermos.join(', ')}
+                    onChange={(e) => setRadarTermos(e.target.value.split(',').map(t => t.trim()))}
+                    placeholder="skincare, harmonização facial"
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #D1D5DB',
+                      fontSize: '0.875rem'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '500', marginBottom: '0.5rem' }}>
+                    Categoria
+                  </label>
+                  <select
+                    value={radarCategoria}
+                    onChange={(e) => setRadarCategoria(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #D1D5DB',
+                      fontSize: '0.875rem'
+                    }}
+                  >
+                    <option value="skincare">Skincare</option>
+                    <option value="procedimentos">Procedimentos</option>
+                    <option value="estetica">Estética Geral</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button
+                  onClick={async () => {
+                    setLoadingRadar(true);
+                    try {
+                      const result = await api.buscarTendencias(radarTermos, radarCategoria, '7dias');
+                      setRadarTendencias(result.data || []);
+                    } catch (error) {
+                      console.error('Erro ao buscar tendências:', error);
+                      alert('❌ Erro ao buscar tendências. Verifique se o servidor Node.js está rodando na porta 3000.');
+                    } finally {
+                      setLoadingRadar(false);
+                    }
+                  }}
+                  disabled={loadingRadar}
+                  style={{
+                    backgroundColor: '#10B981',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.75rem 1.5rem',
+                    cursor: loadingRadar ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    opacity: loadingRadar ? 0.6 : 1
+                  }}
+                >
+                  {loadingRadar ? '⏳ Buscando...' : '🔍 Buscar Tendências'}
+                </button>
+                <button
+                  onClick={async () => {
+                    setLoadingRadar(true);
+                    try {
+                      const result = await api.buscarTendenciasAuto();
+                      setRadarTendencias(result.data || []);
+                    } catch (error) {
+                      console.error('Erro ao buscar tendências:', error);
+                      alert('❌ Erro ao buscar tendências automáticas.');
+                    } finally {
+                      setLoadingRadar(false);
+                    }
+                  }}
+                  disabled={loadingRadar}
+                  style={{
+                    backgroundColor: '#8B5CF6',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.75rem 1.5rem',
+                    cursor: loadingRadar ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    opacity: loadingRadar ? 0.6 : 1
+                  }}
+                >
+                  ✨ Tendências Automáticas
+                </button>
+              </div>
+            </div>
+
+            {/* Resultados */}
+            {loadingRadar && (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#6B7280' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
+                <p>Analisando tendências em múltiplas plataformas...</p>
+              </div>
+            )}
+
+            {!loadingRadar && radarTendencias.length > 0 && (
+              <div style={{ display: 'grid', gap: '1.5rem' }}>
+                {radarTendencias.map((tendencia, index) => (
+                  <div
+                    key={index}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      border: '2px solid #E5E7EB',
+                      borderRadius: '12px',
+                      padding: '1.5rem',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1F2937', margin: 0 }}>
+                        {tendencia.termo}
+                      </h3>
+                      <div style={{
+                        backgroundColor: tendencia.pontuacaoGeral >= 80 ? '#10B981' : tendencia.pontuacaoGeral >= 60 ? '#F59E0B' : '#6B7280',
+                        color: '#FFFFFF',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '20px',
+                        fontWeight: 'bold',
+                        fontSize: '1rem'
+                      }}>
+                        {tendencia.pontuacaoGeral}/100
+                      </div>
+                    </div>
+
+                    {/* Plataformas */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                      {tendencia.plataformas?.youtube && (
+                        <div style={{ backgroundColor: '#FEE2E2', padding: '1rem', borderRadius: '8px' }}>
+                          <div style={{ fontWeight: 'bold', color: '#EF4444', marginBottom: '0.5rem' }}>📺 YouTube</div>
+                          <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                            Pontuação: {tendencia.plataformas.youtube.pontuacao}/100<br />
+                            Views: {tendencia.plataformas.youtube.visualizacoes?.toLocaleString()}
+                          </div>
+                        </div>
+                      )}
+                      {tendencia.plataformas?.instagram && (
+                        <div style={{ backgroundColor: '#FECACA', padding: '1rem', borderRadius: '8px' }}>
+                          <div style={{ fontWeight: 'bold', color: '#DC2626', marginBottom: '0.5rem' }}>📸 Instagram</div>
+                          <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                            Pontuação: {tendencia.plataformas.instagram.pontuacao}/100<br />
+                            Engajamento: {tendencia.plataformas.instagram.engajamentoTotal?.toLocaleString()}
+                          </div>
+                        </div>
+                      )}
+                      {tendencia.plataformas?.twitter && (
+                        <div style={{ backgroundColor: '#DBEAFE', padding: '1rem', borderRadius: '8px' }}>
+                          <div style={{ fontWeight: 'bold', color: '#3B82F6', marginBottom: '0.5rem' }}>🐦 Twitter/X</div>
+                          <div style={{ fontSize: '0.875rem', color: '#6B7280' }}>
+                            Pontuação: {tendencia.plataformas.twitter.pontuacao}/100<br />
+                            Tweets: {tendencia.plataformas.twitter.totalTweets}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recomendações */}
+                    {tendencia.recomendacoes && tendencia.recomendacoes.length > 0 && (
+                      <div style={{ backgroundColor: '#FEF3C7', padding: '1rem', borderRadius: '8px' }}>
+                        <div style={{ fontWeight: 'bold', color: '#92400E', marginBottom: '0.5rem' }}>💡 Recomendações</div>
+                        {tendencia.recomendacoes.map((rec, idx) => (
+                          <div key={idx} style={{ fontSize: '0.875rem', color: '#6B7280', marginBottom: '0.25rem' }}>
+                            <strong style={{ color: rec.prioridade === 'alta' ? '#EF4444' : '#F59E0B' }}>
+                              {rec.plataforma}:
+                            </strong> {rec.sugestao}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!loadingRadar && radarTendencias.length === 0 && (
+              <div style={{
+                textAlign: 'center',
+                padding: '3rem',
+                color: '#6B7280',
+                backgroundColor: '#F9FAFB',
+                borderRadius: '12px'
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
+                <p style={{ fontSize: '1.125rem', fontWeight: '500' }}>Nenhuma tendência encontrada</p>
+                <p style={{ fontSize: '0.875rem' }}>Clique em "Buscar Tendências" ou "Tendências Automáticas" para começar</p>
+              </div>
+            )}
           </div>
         </div>
       )}
